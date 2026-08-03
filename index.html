@@ -149,12 +149,12 @@
         radar/banzone e anti-cheat — sem precisar mexer em arquivo nenhum na mão.
       </p>
       <form id="checkout-form" class="checkout">
-        <input id="email" type="email" placeholder="seu@email.com" required />
-        <select id="plan">
+        <input id="email" type="email" placeholder="seu@email.com" required disabled />
+        <select id="plan" disabled>
           <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
           <option value="one_time">Pagamento avulso (30 dias)</option>
         </select>
-        <button type="submit" class="btn btn-primary" id="checkout-btn">💳 Assinar agora</button>
+        <button type="submit" class="btn btn-primary" id="checkout-btn" disabled>🔒 Assinar agora (em breve)</button>
         <p id="checkout-error" class="error-msg"></p>
       </form>
     </header>
@@ -205,6 +205,8 @@
 
     document.getElementById("checkout-form").addEventListener("submit", async (e) => {
       e.preventDefault();
+      return; // TRAVADO: fluxo de assinatura ainda nao esta pronto (falta onboarding completo)
+      // eslint-disable-next-line no-unreachable
       const email = document.getElementById("email").value.trim();
       const planType = document.getElementById("plan").value;
       const btn = document.getElementById("checkout-btn");
