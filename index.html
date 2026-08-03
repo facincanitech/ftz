@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FTZ Bot — Gestão de servidor DayZ</title>
+<meta name="description" content="Bot Discord para gestão de servidor DayZ na Nitrado: economia, loja, killfeed, radar/banzone, anti-cheat e mais." />
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #9aa2b1;
+    --accent: #5865f2;
+    --accent2: #2ecc71;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1a1e2a 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 64px 20px 80px; }
+  header { text-align: center; margin-bottom: 56px; }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(88, 101, 242, 0.15);
+    border: 1px solid rgba(88, 101, 242, 0.4);
+    color: #b3baff;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  header p.tagline {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .cta {
+    margin-top: 32px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 8px 24px rgba(88, 101, 242, 0.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(88, 101, 242, 0.45); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .card .icon { font-size: 26px; margin-bottom: 10px; display: block; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+  section { margin-top: 64px; }
+  section > h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  footer {
+    margin-top: 80px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+  footer a { color: var(--muted); }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6fa;
+      --card: #ffffff;
+      --border: #e3e6ee;
+      --text: #14161b;
+      --muted: #5a6070;
+    }
+    body { background: radial-gradient(circle at 50% 0%, #eef0ff 0%, var(--bg) 55%); }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">🧟 DayZ · Nitrado · Discord</span>
+      <h1>FTZ Bot</h1>
+      <p class="tagline">
+        Gestão completa do seu servidor DayZ direto no Discord: economia, loja, killfeed,
+        radar/banzone e anti-cheat — sem precisar mexer em arquivo nenhum na mão.
+      </p>
+      <div class="cta">
+        <!-- Troque o link abaixo se o permissions/ID mudar -->
+        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=1533841269648916550&permissions=2147568656&integration_type=0&scope=bot%20applications.commands">
+          ➕ Adicionar ao Discord
+        </a>
+      </div>
+    </header>
+
+    <section>
+      <h2>O que o bot faz</h2>
+      <div class="grid">
+        <div class="card">
+          <span class="icon">💀</span>
+          <h3>Killfeed completo</h3>
+          <p>PvP com arma, distância e headshot; PvE (zumbi/animal); suicídio — tudo postado automaticamente.</p>
+        </div>
+        <div class="card">
+          <span class="icon">💰</span>
+          <h3>Economia (DZCoins)</h3>
+          <p>Carteira e banco por jogador, payout passivo configurável, transferência automática ao morrer pra outro jogador.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🛒</span>
+          <h3>Loja com spawn real</h3>
+          <p>Admin cria kits com itens validados contra o servidor real; jogador compra e recebe no próximo restart — sem deixar rastro.</p>
+        </div>
+        <div class="card">
+          <span class="icon">📡</span>
+          <h3>Radar / Banzone</h3>
+          <p>Zonas geofence detectadas em tempo real a partir do log — com dedupe pra não banir em duplicidade.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🛡️</span>
+          <h3>Anti-cheat</h3>
+          <p>Detecção de voo/glitch de altitude, construção no ar, dupe por relog e combat-log.</p>
+        </div>
+        <div class="card">
+          <span class="icon">⚙️</span>
+          <h3>Setup automático</h3>
+          <p>Um comando cria todos os canais e categorias com as permissões certas — nada de configurar ID de canal na mão.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado.
+    </footer>
+  </div>
+</body>
+</html>
