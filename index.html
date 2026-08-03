@@ -54,6 +54,26 @@
     gap: 12px;
     flex-wrap: wrap;
   }
+  .checkout {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .checkout input, .checkout select {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 15px;
+  }
+  .checkout button { border: none; cursor: pointer; width: 100%; justify-content: center; }
+  .checkout button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .error-msg { color: #ff6b6b; font-size: 13px; margin: 0; min-height: 16px; }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -128,12 +148,15 @@
         Gestão completa do seu servidor DayZ direto no Discord: economia, loja, killfeed,
         radar/banzone e anti-cheat — sem precisar mexer em arquivo nenhum na mão.
       </p>
-      <div class="cta">
-        <!-- Troque o link abaixo se o permissions/ID mudar -->
-        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=1533841269648916550&permissions=2147568656&integration_type=0&scope=bot%20applications.commands">
-          ➕ Adicionar ao Discord
-        </a>
-      </div>
+      <form id="checkout-form" class="checkout">
+        <input id="email" type="email" placeholder="seu@email.com" required />
+        <select id="plan">
+          <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
+          <option value="one_time">Pagamento avulso (30 dias)</option>
+        </select>
+        <button type="submit" class="btn btn-primary" id="checkout-btn">💳 Assinar agora</button>
+        <p id="checkout-error" class="error-msg"></p>
+      </form>
     </header>
 
     <section>
@@ -176,5 +199,39 @@
       Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado.
     </footer>
   </div>
+
+  <script>
+    const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+
+    document.getElementById("checkout-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const planType = document.getElementById("plan").value;
+      const btn = document.getElementById("checkout-btn");
+      const errorEl = document.getElementById("checkout-error");
+      errorEl.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "Gerando pagamento...";
+
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/create-checkout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, planType }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.checkoutUrl) throw new Error(data.error || "Falha ao gerar pagamento");
+
+        // guarda a referencia pra pagina de sucesso conseguir checar o status
+        // depois que o Mercado Pago redirecionar de volta
+        sessionStorage.setItem("ftz_checkout_email", email);
+        window.location.href = data.checkoutUrl;
+      } catch (err) {
+        errorEl.textContent = "Erro: " + err.message;
+        btn.disabled = false;
+        btn.textContent = "💳 Assinar agora";
+      }
+    });
+  </script>
 </body>
 </html>
