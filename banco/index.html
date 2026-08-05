@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Caixa Eletrônico — FTZ Bot</title>
+<meta name="description" content="Banco do jogador — sacar, depositar e transferir DZCoins." />
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #9aa2b1;
+    --accent: #5865f2;
+    --green: #2ecc71;
+    --red: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1a1e2a 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .atm {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .atm-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .atm-header .icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(46, 204, 113, 0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .atm-header h1 { font-size: 15px; margin: 0; }
+  .atm-header p { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+
+  .screen {
+    margin: 18px 20px 0;
+    background: #0c1a06;
+    border: 1px solid #1f3a12;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    color: #8fd35a;
+    min-height: 120px;
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+  .screen .muted { color: #4e7a34; }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 16px 20px 0;
+  }
+  .actions button {
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #1d212b;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .actions button.active { border-color: var(--accent); background: rgba(88,101,242,0.15); color: #b3baff; }
+  .actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .form-area { padding: 14px 20px 0; display: none; flex-direction: column; gap: 10px; }
+  .form-area.open { display: flex; }
+  .form-area input {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0f1218;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .form-area .confirm-btn {
+    height: 38px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .form-area .confirm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .status-line {
+    margin: 14px 20px 0;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 16px;
+  }
+  .status-line.ok { color: var(--green); }
+  .status-line.err { color: var(--red); }
+
+  footer {
+    padding: 18px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .error-screen {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--muted);
+  }
+  .error-screen .icon { font-size: 32px; margin-bottom: 12px; }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6fa; --card: #ffffff; --border: #e3e6ee; --text: #14161b; --muted: #5a6070;
+    }
+    body { background: radial-gradient(circle at 50% 0%, #eef0ff 0%, var(--bg) 55%); }
+  }
+</style>
+</head>
+<body>
+  <div class="atm" id="atm">
+    <div class="atm-header">
+      <span class="icon">🏧</span>
+      <div>
+        <h1>Caixa Eletrônico</h1>
+        <p id="subtitle">Carregando...</p>
+      </div>
+    </div>
+
+    <div id="content"></div>
+
+    <footer>FTZ Bot · link pessoal, não compartilhe</footer>
+  </div>
+
+  <script>
+    const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    const contentEl = document.getElementById("content");
+    const subtitleEl = document.getElementById("subtitle");
+
+    let state = { gamertag: "", wallet: 0, bank: 0, activeAction: null };
+
+    function screenText() {
+      const line = "-".repeat(30);
+      if (!state.gamertag) return line + "\n   carregando...\n" + line;
+      return (
+        line + "\n" +
+        `  Bem-vindo(a), ${state.gamertag}\n\n` +
+        `  Carteira: ${String(state.wallet).padStart(8)} DZCoins\n` +
+        `  Banco:    ${String(state.bank).padStart(8)} DZCoins\n` +
+        line
+      );
+    }
+
+    function renderForm() {
+      if (state.activeAction === "transferir") {
+        return `
+          <div class="form-area open">
+            <input id="destino" type="text" placeholder="Gamertag de quem recebe" />
+            <input id="valor" type="number" min="1" placeholder="Valor em DZCoins" />
+            <button class="confirm-btn" id="confirmBtn">Confirmar transferência</button>
+          </div>`;
+      }
+      if (state.activeAction === "sacar" || state.activeAction === "depositar") {
+        const label = state.activeAction === "sacar" ? "Sacar do banco" : "Depositar no banco";
+        return `
+          <div class="form-area open">
+            <input id="valor" type="number" min="1" placeholder="Valor em DZCoins" />
+            <button class="confirm-btn" id="confirmBtn">Confirmar ${label.toLowerCase()}</button>
+          </div>`;
+      }
+      return `<div class="form-area"></div>`;
+    }
+
+    function render(statusMsg, statusClass) {
+      contentEl.innerHTML = `
+        <div class="screen">${screenText()}</div>
+        <div class="actions">
+          <button data-action="sacar" class="${state.activeAction === "sacar" ? "active" : ""}">🏧 Sacar</button>
+          <button data-action="depositar" class="${state.activeAction === "depositar" ? "active" : ""}">🏦 Depositar</button>
+          <button data-action="transferir" class="${state.activeAction === "transferir" ? "active" : ""}">🔁 Transferir</button>
+        </div>
+        ${renderForm()}
+        <div class="status-line ${statusClass || ""}">${statusMsg || ""}</div>
+      `;
+
+      contentEl.querySelectorAll(".actions button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.activeAction = state.activeAction === btn.dataset.action ? null : btn.dataset.action;
+          render();
+        });
+      });
+
+      const confirmBtn = document.getElementById("confirmBtn");
+      if (confirmBtn) confirmBtn.addEventListener("click", submitAction);
+    }
+
+    async function submitAction() {
+      const action = state.activeAction;
+      const valorInput = document.getElementById("valor");
+      const destinoInput = document.getElementById("destino");
+      const valor = valorInput ? parseInt(valorInput.value, 10) : null;
+
+      if (!Number.isFinite(valor) || valor <= 0) {
+        render("Informe um valor válido.", "err");
+        return;
+      }
+      if (action === "transferir" && !destinoInput.value.trim()) {
+        render("Informe o gamertag de quem recebe.", "err");
+        return;
+      }
+
+      const confirmBtn = document.getElementById("confirmBtn");
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "Processando...";
+
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/banco-action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            action,
+            valor,
+            destinoGamertag: destinoInput ? destinoInput.value.trim() : undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          render(data.error || data.message || "Não foi possível concluir.", "err");
+          return;
+        }
+        state.wallet = data.wallet;
+        state.bank = data.bank;
+        state.activeAction = null;
+        render(data.message, "ok");
+      } catch (err) {
+        render("Erro de conexão — tenta de novo.", "err");
+      }
+    }
+
+    async function loadSession() {
+      if (!token) {
+        showError("Link inválido — abre o Caixa Eletrônico pelo Discord de novo.");
+        return;
+      }
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/banco-session?token=${encodeURIComponent(token)}`);
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.error || "Link expirado ou inválido.");
+          return;
+        }
+        state.gamertag = data.gamertag;
+        state.wallet = data.wallet;
+        state.bank = data.bank;
+        subtitleEl.textContent = "Servidor DayZ · sessão pessoal";
+        render();
+      } catch (err) {
+        showError("Erro de conexão — tenta de novo em alguns segundos.");
+      }
+    }
+
+    function showError(msg) {
+      subtitleEl.textContent = "Sessão indisponível";
+      contentEl.innerHTML = `
+        <div class="error-screen">
+          <div class="icon">🔒</div>
+          <p>${msg}</p>
+        </div>`;
+    }
+
+    loadSession();
+  </script>
+</body>
+</html>
