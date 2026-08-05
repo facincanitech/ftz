@@ -127,6 +127,50 @@
   }
   footer a { color: var(--muted); }
 
+  .settings {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 20;
+  }
+  .settings-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.4s ease, background 0.15s ease;
+  }
+  .settings-btn:hover { transform: rotate(45deg); }
+  .settings-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 48px;
+    min-width: 200px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  }
+  .settings.open .settings-menu { display: block; }
+  .settings-menu a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .settings-menu a:hover { background: rgba(255, 255, 255, 0.06); }
+
   @media (prefers-color-scheme: light) {
     :root {
       --bg: #f5f6fa;
@@ -140,6 +184,14 @@
 </style>
 </head>
 <body>
+  <div class="settings" id="settings">
+    <button class="settings-btn" id="settings-btn" aria-label="Configurações" aria-haspopup="true" aria-expanded="false">⚙️</button>
+    <div class="settings-menu">
+      <a href="termos-de-servico/">📄 Termos de Serviço</a>
+      <a href="politica-de-privacidade/">🔒 Política de Privacidade</a>
+    </div>
+  </div>
+
   <div class="wrap">
     <header>
       <span class="badge">🧟 DayZ · Nitrado · Discord</span>
@@ -196,11 +248,27 @@
     </section>
 
     <footer>
-      Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado.
+      Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado. ·
+      <a href="termos-de-servico/">Termos de Serviço</a> ·
+      <a href="politica-de-privacidade/">Política de Privacidade</a>
     </footer>
   </div>
 
   <script>
+    const settingsWrap = document.getElementById("settings");
+    const settingsBtn = document.getElementById("settings-btn");
+    settingsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = settingsWrap.classList.toggle("open");
+      settingsBtn.setAttribute("aria-expanded", String(isOpen));
+    });
+    document.addEventListener("click", (e) => {
+      if (!settingsWrap.contains(e.target)) {
+        settingsWrap.classList.remove("open");
+        settingsBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
     const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
 
     document.getElementById("checkout-form").addEventListener("submit", async (e) => {

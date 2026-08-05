@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Política de Privacidade — FTZ Bot</title>
+<meta name="description" content="Política de Privacidade do FTZ Bot." />
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #9aa2b1;
+    --accent: #5865f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1a1e2a 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 56px 20px 80px; }
+  a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
+  a.back:hover { color: var(--text); }
+  h1 { font-size: clamp(26px, 4vw, 34px); margin: 24px 0 4px; letter-spacing: -0.02em; }
+  .updated { color: var(--muted); font-size: 13px; margin: 0 0 40px; }
+  h2 { font-size: 18px; margin: 36px 0 10px; }
+  p, li { color: var(--text); font-size: 15px; line-height: 1.7; }
+  ul { padding-left: 20px; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .muted { color: var(--muted); }
+  footer {
+    margin-top: 64px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+  footer a { color: var(--muted); }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6fa;
+      --card: #ffffff;
+      --border: #e3e6ee;
+      --text: #14161b;
+      --muted: #5a6070;
+    }
+    body { background: radial-gradient(circle at 50% 0%, #eef0ff 0%, var(--bg) 55%); }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="../">← Voltar</a>
+    <h1>Política de Privacidade</h1>
+    <p class="updated">Última atualização: agosto de 2026</p>
+
+    <p>
+      Esta política descreve quais dados o FTZ Bot ("Serviço", "Bot"), operado pela Facincani Tech,
+      coleta e como eles são usados. Ao usar o Bot ou o site do Serviço, você concorda com esta política.
+    </p>
+
+    <h2>1. Dados que coletamos</h2>
+    <table>
+      <tr><th>Dado</th><th>Origem</th><th>Por quê</th></tr>
+      <tr><td>ID de usuário e servidor do Discord</td><td>Discord</td><td>Identificar quem interage com o Bot e em qual servidor</td></tr>
+      <tr><td>Gamertag e ID do jogador no DayZ</td><td>Log do servidor (.ADM) / vinculação manual</td><td>Ligar a conta Discord ao personagem no jogo (economia, ranking, radar)</td></tr>
+      <tr><td>Posição, kills, mortes, construções</td><td>Log do servidor (.ADM)</td><td>Killfeed, anti-cheat, ranking, mapas de calor</td></tr>
+      <tr><td>E-mail</td><td>Fornecido no checkout</td><td>Processar pagamento e enviar confirmação/recibo</td></tr>
+      <tr><td>Token de API da Nitrado</td><td>Fornecido pelo contratante do servidor</td><td>Operar o servidor em nome do contratante (ler logs, reiniciar, etc)</td></tr>
+    </table>
+
+    <h2>2. Como usamos os dados</h2>
+    <ul>
+      <li>Operar as funcionalidades do Bot (economia, loja, killfeed, radar, agendamento, anti-cheat);</li>
+      <li>Processar pagamentos via Mercado Pago;</li>
+      <li>Diagnosticar problemas técnicos e melhorar o Serviço.</li>
+    </ul>
+    <p>Não vendemos nem compartilhamos esses dados com terceiros para fins de marketing.</p>
+
+    <h2>3. Onde os dados ficam</h2>
+    <p>
+      Os dados operacionais (jogadores, economia, eventos, logs processados) ficam armazenados num banco
+      Postgres gerenciado (Supabase). Tokens de API de terceiros (Nitrado) ficam apenas na configuração do
+      servidor do Bot, não são expostos a outros usuários.
+    </p>
+
+    <h2>4. Retenção</h2>
+    <p>
+      Dados de jogador (economia, ranking, posição) são mantidos enquanto o servidor estiver ativo no Bot.
+      Dados de pagamento seguem o período exigido pela legislação fiscal aplicável. Você pode solicitar
+      remoção de dados específicos entrando em contato (sujeito a limitações técnicas do log do próprio
+      jogo, que não controlamos).
+    </p>
+
+    <h2>5. Terceiros envolvidos</h2>
+    <ul>
+      <li><strong>Discord</strong> — hospeda a interface onde o Bot opera;</li>
+      <li><strong>Nitrado</strong> — hospeda o servidor de jogo e fornece os logs consumidos pelo Bot;</li>
+      <li><strong>Mercado Pago</strong> — processa pagamentos, não temos acesso a dados completos de cartão;</li>
+      <li><strong>Supabase</strong> — hospeda o banco de dados do Bot.</li>
+    </ul>
+
+    <h2>6. Seus direitos</h2>
+    <p>
+      Você pode solicitar acesso, correção ou remoção dos seus dados pessoais (ex: desvincular sua
+      gamertag) entrando em contato pelos canais do Serviço.
+    </p>
+
+    <h2>7. Contato</h2>
+    <p class="muted">Dúvidas sobre esta política: contato via Discord do desenvolvedor.</p>
+
+    <footer>
+      Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado. ·
+      <a href="../termos-de-servico/">Termos de Serviço</a>
+    </footer>
+  </div>
+</body>
+</html>
