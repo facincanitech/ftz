@@ -275,10 +275,26 @@
 
     <section id="tutorial-nitrado">
       <h2>📍 Onde acho o ID e o token da Nitrado?</h2>
-      <div class="card">
-        <p style="margin: 0 0 10px;"><strong>ID do serviço:</strong> aparece na URL quando você abre seu servidor no painel da Nitrado (o número depois de <code>/server/game/</code>).</p>
-        <p style="margin: 0;"><strong>Token da API:</strong> gerado na área de conta da Nitrado, em configurações de API/tokens.</p>
-        <!-- TODO: prints do André entram aqui -->
+      <div class="grid">
+        <div class="card">
+          <h3>1. ID do serviço</h3>
+          <p>
+            Em <a href="https://server.nitrado.net/pt-BR/services?tab=game&gamePage=1&voicePage=1" target="_blank" rel="noopener" style="color: var(--accent);">Meus Serviços</a>,
+            clique em <strong>"Interface web"</strong> no seu servidor. A página abre com a URL
+            <code>webinterface.nitrado.net/<em>ID</em>/wi/gameserver/</code> — o número ali no meio é o seu ID do serviço.
+          </p>
+          <img src="assets/nitrado-idserver.png" alt="Tela de Meus Serviços na Nitrado, com o botão Interface web em destaque" style="width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border);" />
+        </div>
+        <div class="card">
+          <h3>2. Token da API</h3>
+          <p>
+            Em <a href="https://server.nitrado.net/prt/users/update_token" target="_blank" rel="noopener" style="color: var(--accent);">Criar Token</a>,
+            confirme sua senha e marque: <strong>rootserver</strong>, <strong>service</strong>, <strong>service_order</strong>,
+            <strong>user_edit</strong> e <strong>user_info</strong> (não precisa marcar <em>ssh_keys</em>). Dá um nome pro token
+            (ex: "FTZ Bot") e clica em <strong>Criar</strong>.
+          </p>
+          <img src="assets/nitrado-token.png" alt="Tela de criação de token de longa duração na Nitrado, com os escopos marcados" style="width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border);" />
+        </div>
       </div>
     </section>
 
