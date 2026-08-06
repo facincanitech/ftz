@@ -139,28 +139,30 @@
 
   .items{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
   }
 
   .item{
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     padding: 10px;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 4px;
     cursor: pointer;
     text-align: left;
+    position: relative;
   }
   .item.selected{
     border-color: var(--accent);
     background: var(--panel-2);
   }
   .item .thumb{
-    width: 56px;
-    height: 56px;
-    flex-shrink: 0;
+    width: 100%;
+    max-width: 500px;
+    aspect-ratio: 1 / 1;
     border-radius: 4px;
     background: var(--bg);
     border: 1px dashed var(--line-strong);
@@ -172,19 +174,21 @@
   .item.selected .thumb{
     border-color: var(--accent-dim);
   }
+  .item .thumb img{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
   .item .thumb .fallback{
     font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-faint);
     text-align: center;
     line-height: 1.3;
   }
   .item .info{
-    flex: 1;
-    min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     gap: 4px;
   }
   .item .info .name{
@@ -197,14 +201,17 @@
     color: var(--text-dim);
   }
   .item .check{
-    align-self: flex-start;
-    width: 18px; height: 18px;
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 22px; height: 22px;
     border-radius: 3px;
     border: 1px solid var(--line-strong);
+    background: var(--panel);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
     color: var(--bg);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
   }
   .item.selected .check{
