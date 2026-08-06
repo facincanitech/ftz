@@ -337,6 +337,13 @@
   var params = new URLSearchParams(window.location.search);
   var playerToken = params.get('token') || null;
 
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
   // Categorias reais do catalogo (mesmas de LOJA_CATEGORIES em
   // src/index.js) — a ordem aqui define a ordem dos botoes de nav.
   var CATS = [
@@ -428,10 +435,14 @@
       var card = document.createElement('button');
       card.className = 'item' + (inCart ? ' selected' : '');
 
+      var thumb = item.image
+        ? '<img src="' + escapeAttr(item.image) + '" alt="">'
+        : '<span class="fallback">sem<br>imagem</span>';
+
       card.innerHTML =
-        '<span class="thumb"><span class="fallback">sem<br>imagem</span></span>' +
+        '<span class="thumb">' + thumb + '</span>' +
         '<span class="info">' +
-          '<span class="name">' + item.name + '</span>' +
+          '<span class="name">' + escapeHtml(item.name) + '</span>' +
           '<span class="price mono">' + fmt(item.price) + '</span>' +
         '</span>' +
         '<span class="check">' + (inCart ? '✓' : '') + '</span>';
@@ -552,7 +563,7 @@
     (jogador.kits || []).forEach(function(kit){
       var cat = kit.category || 'outros';
       if (!ITEMS[cat]) ITEMS[cat] = [];
-      ITEMS[cat].push({ name: kit.name, price: kit.price });
+      ITEMS[cat].push({ name: kit.name, price: kit.price, image: kit.image_url || '' });
     });
 
     carregado = true;
