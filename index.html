@@ -204,6 +204,19 @@
         <button type="button" class="btn btn-primary" id="discord-login-btn">🔗 Entrar com Discord</button>
         <p id="login-status" class="error-msg" style="color: var(--muted);"></p>
       </div>
+
+      <form id="checkout-form" class="checkout" style="display: none;">
+        <input id="server-name" type="text" placeholder="Nome do seu servidor DayZ" required />
+        <input id="nitrado-service-id" type="text" placeholder="ID do serviço Nitrado" required />
+        <input id="nitrado-token" type="text" placeholder="Token da API Nitrado" required />
+        <input id="email" type="email" placeholder="seu@email.com (pra receber o recibo do pagamento)" required />
+        <select id="plan">
+          <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
+          <option value="one_time">Pagamento avulso (30 dias)</option>
+        </select>
+        <button type="submit" class="btn btn-primary" id="checkout-btn">💳 Assinar agora</button>
+        <p id="checkout-error" class="error-msg"></p>
+      </form>
     </header>
 
     <section>
@@ -266,21 +279,30 @@
 
     const DISCORD_CLIENT_ID = "1533841269648916550";
     const REDIRECT_URI = "https://facincanitech.github.io/ftz/auth/callback/";
+    const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
 
     const loginBtn = document.getElementById("discord-login-btn");
     const loginStatus = document.getElementById("login-status");
+    const checkoutForm = document.getElementById("checkout-form");
 
-    function renderSession() {
+    function getSession() {
       const raw = localStorage.getItem("ftz_site_session");
-      if (!raw) return;
+      if (!raw) return null;
       try {
-        const session = JSON.parse(raw);
-        loginBtn.style.display = "none";
-        loginStatus.style.color = "var(--accent2)";
-        loginStatus.textContent = `✅ Logado como @${session.discordUser.username} — formulário de contratação em breve.`;
+        return JSON.parse(raw);
       } catch {
         localStorage.removeItem("ftz_site_session");
+        return null;
       }
+    }
+
+    function renderSession() {
+      const session = getSession();
+      if (!session) return;
+      loginBtn.style.display = "none";
+      loginStatus.style.color = "var(--accent2)";
+      loginStatus.textContent = `✅ Logado como @${session.discordUser.username}`;
+      checkoutForm.style.display = "flex";
     }
     renderSession();
 
@@ -291,6 +313,46 @@
       url.searchParams.set("response_type", "code");
       url.searchParams.set("scope", "identify");
       window.location.href = url.toString();
+    });
+
+    checkoutForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const session = getSession();
+      const errorEl = document.getElementById("checkout-error");
+      const btn = document.getElementById("checkout-btn");
+      errorEl.textContent = "";
+
+      if (!session) {
+        errorEl.textContent = "Sessão expirada — entra com Discord de novo.";
+        return;
+      }
+
+      const payload = {
+        email: document.getElementById("email").value.trim(),
+        planType: document.getElementById("plan").value,
+        siteSessionToken: session.token,
+        serverName: document.getElementById("server-name").value.trim(),
+        nitradoServiceId: document.getElementById("nitrado-service-id").value.trim(),
+        nitradoToken: document.getElementById("nitrado-token").value.trim(),
+      };
+
+      btn.disabled = true;
+      btn.textContent = "Gerando pagamento...";
+
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/create-checkout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.checkoutUrl) throw new Error(data.error || "Falha ao gerar pagamento");
+        window.location.href = data.checkoutUrl;
+      } catch (err) {
+        errorEl.textContent = "Erro: " + err.message;
+        btn.disabled = false;
+        btn.textContent = "💳 Assinar agora";
+      }
     });
   </script>
 </body>
