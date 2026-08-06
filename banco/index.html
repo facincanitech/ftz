@@ -261,7 +261,10 @@
     }
 
     function handleF(f) {
-      if (state !== "menu") return;
+      // Deixa trocar de operacao direto (F1->F2 etc) sem precisar cancelar
+      // antes — isso so fazia sentido em ATM fisico de verdade, na web e
+      // so friccao. So trava se tiver uma operacao rodando de verdade.
+      if (busy) return;
       if (f === "1") { state = "sacar"; buffer = 0; msg = "Digite o valor a sacar\ne confirme (✓)."; }
       else if (f === "2") { state = "depositar"; buffer = 0; msg = "Digite o valor a depositar\ne confirme (✓)."; }
       else if (f === "3") { state = "transferir_gamertag"; destinoGamertag = ""; msg = "Digite o gamertag\nde quem recebe."; }
