@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Entrando com Discord... — FTZ Bot</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0f1115;
+    color: #e6e8ec;
+  }
+  p { color: #9aa2b1; }
+  .error { color: #ff6b6b; }
+</style>
+</head>
+<body>
+  <div style="text-align:center">
+    <p id="status">Entrando com Discord...</p>
+  </div>
+
+<script>
+(function(){
+  var FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+  var statusEl = document.getElementById("status");
+
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get("code");
+  var error = params.get("error");
+
+  if (error) {
+    statusEl.textContent = "Login cancelado.";
+    setTimeout(function(){ window.location.href = "../../"; }, 1500);
+    return;
+  }
+
+  if (!code) {
+    statusEl.textContent = "Link inválido — volta e tenta de novo.";
+    return;
+  }
+
+  fetch(FUNCTIONS_URL + "/discord-oauth-callback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: code })
+  })
+    .then(function(res){ return res.json().then(function(body){ return { res: res, body: body }; }); })
+    .then(function(r){
+      if (!r.res.ok) throw new Error(r.body.error || "Falha ao entrar com Discord.");
+      localStorage.setItem("ftz_site_session", JSON.stringify(r.body));
+      statusEl.textContent = "Login feito! Redirecionando...";
+      window.location.href = "../../";
+    })
+    .catch(function(err){
+      statusEl.className = "error";
+      statusEl.textContent = "Erro: " + err.message;
+    });
+})();
+</script>
+</body>
+</html>

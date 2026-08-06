@@ -200,15 +200,10 @@
         Gestão completa do seu servidor DayZ direto no Discord: economia, loja, killfeed,
         radar/banzone e anti-cheat — sem precisar mexer em arquivo nenhum na mão.
       </p>
-      <form id="checkout-form" class="checkout">
-        <input id="email" type="email" placeholder="seu@email.com" required disabled />
-        <select id="plan" disabled>
-          <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
-          <option value="one_time">Pagamento avulso (30 dias)</option>
-        </select>
-        <button type="submit" class="btn btn-primary" id="checkout-btn" disabled>🔒 Assinar agora (em breve)</button>
-        <p id="checkout-error" class="error-msg"></p>
-      </form>
+      <div class="checkout">
+        <button type="button" class="btn btn-primary" id="discord-login-btn">🔗 Entrar com Discord</button>
+        <p id="login-status" class="error-msg" style="color: var(--muted);"></p>
+      </div>
     </header>
 
     <section>
@@ -269,38 +264,33 @@
       }
     });
 
-    const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+    const DISCORD_CLIENT_ID = "1533841269648916550";
+    const REDIRECT_URI = "https://facincanitech.github.io/ftz/auth/callback/";
 
-    document.getElementById("checkout-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      return; // TRAVADO: fluxo de assinatura ainda nao esta pronto (falta onboarding completo)
-      // eslint-disable-next-line no-unreachable
-      const email = document.getElementById("email").value.trim();
-      const planType = document.getElementById("plan").value;
-      const btn = document.getElementById("checkout-btn");
-      const errorEl = document.getElementById("checkout-error");
-      errorEl.textContent = "";
-      btn.disabled = true;
-      btn.textContent = "Gerando pagamento...";
+    const loginBtn = document.getElementById("discord-login-btn");
+    const loginStatus = document.getElementById("login-status");
 
+    function renderSession() {
+      const raw = localStorage.getItem("ftz_site_session");
+      if (!raw) return;
       try {
-        const res = await fetch(`${FUNCTIONS_URL}/create-checkout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, planType }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.checkoutUrl) throw new Error(data.error || "Falha ao gerar pagamento");
-
-        // guarda a referencia pra pagina de sucesso conseguir checar o status
-        // depois que o Mercado Pago redirecionar de volta
-        sessionStorage.setItem("ftz_checkout_email", email);
-        window.location.href = data.checkoutUrl;
-      } catch (err) {
-        errorEl.textContent = "Erro: " + err.message;
-        btn.disabled = false;
-        btn.textContent = "💳 Assinar agora";
+        const session = JSON.parse(raw);
+        loginBtn.style.display = "none";
+        loginStatus.style.color = "var(--accent2)";
+        loginStatus.textContent = `✅ Logado como @${session.discordUser.username} — formulário de contratação em breve.`;
+      } catch {
+        localStorage.removeItem("ftz_site_session");
       }
+    }
+    renderSession();
+
+    loginBtn.addEventListener("click", () => {
+      const url = new URL("https://discord.com/oauth2/authorize");
+      url.searchParams.set("client_id", DISCORD_CLIENT_ID);
+      url.searchParams.set("redirect_uri", REDIRECT_URI);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("scope", "identify");
+      window.location.href = url.toString();
     });
   </script>
 </body>
