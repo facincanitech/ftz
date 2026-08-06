@@ -206,17 +206,35 @@
       </div>
 
       <form id="checkout-form" class="checkout" style="display: none;">
-        <input id="server-name" type="text" placeholder="Nome do seu servidor DayZ" required />
+        <input id="customer-name" type="text" placeholder="Seu nome" required />
+        <input id="email" type="email" placeholder="seu@email.com (pra receber o recibo do pagamento)" required />
         <input id="nitrado-service-id" type="text" placeholder="ID do serviço Nitrado" required />
         <input id="nitrado-token" type="text" placeholder="Token da API Nitrado" required />
-        <input id="email" type="email" placeholder="seu@email.com (pra receber o recibo do pagamento)" required />
-        <select id="plan">
-          <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
-          <option value="one_time">Pagamento avulso (30 dias)</option>
-        </select>
-        <button type="submit" class="btn btn-primary" id="checkout-btn">💳 Assinar agora</button>
-        <p id="checkout-error" class="error-msg"></p>
+        <p id="nitrado-tutorial-link" style="font-size: 12px; color: var(--muted); margin: -4px 0 0;">
+          Não sabe onde achar isso? <a href="#tutorial-nitrado" style="color: var(--accent);">veja o passo a passo</a>
+        </p>
+        <button type="button" class="btn btn-primary" id="verify-nitrado-btn" style="font-size: 14px; padding: 10px 20px;">
+          🔍 Verificar servidor
+        </button>
+        <p id="nitrado-status" class="error-msg"></p>
+
+        <div id="plan-section" style="display: none; flex-direction: column; gap: 12px;">
+          <select id="plan">
+            <option value="recurring">Assinatura mensal (cobra sozinho todo mês)</option>
+            <option value="one_time">Pagamento avulso via Pix (30 dias)</option>
+          </select>
+          <button type="submit" class="btn btn-primary" id="checkout-btn">💳 Assinar agora</button>
+          <p id="checkout-error" class="error-msg"></p>
+        </div>
       </form>
+
+      <div id="pix-section" class="checkout" style="display: none;">
+        <p style="text-align: center; color: var(--muted); font-size: 14px;">Escaneia o QR code ou copia o código Pix:</p>
+        <img id="pix-qr-img" style="max-width: 240px; margin: 0 auto; border-radius: 8px;" />
+        <textarea id="pix-code" readonly style="width: 100%; min-height: 70px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 11px; resize: none;"></textarea>
+        <button type="button" class="btn btn-primary" id="pix-copy-btn" style="font-size: 14px; padding: 10px 20px;">📋 Copiar código</button>
+        <p id="pix-status" style="text-align: center; color: var(--muted); font-size: 13px;">Aguardando pagamento...</p>
+      </div>
     </header>
 
     <section>
@@ -252,6 +270,15 @@
           <h3>Setup automático</h3>
           <p>Um comando cria todos os canais e categorias com as permissões certas — nada de configurar ID de canal na mão.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="tutorial-nitrado">
+      <h2>📍 Onde acho o ID e o token da Nitrado?</h2>
+      <div class="card">
+        <p style="margin: 0 0 10px;"><strong>ID do serviço:</strong> aparece na URL quando você abre seu servidor no painel da Nitrado (o número depois de <code>/server/game/</code>).</p>
+        <p style="margin: 0;"><strong>Token da API:</strong> gerado na área de conta da Nitrado, em configurações de API/tokens.</p>
+        <!-- TODO: prints do André entram aqui -->
       </div>
     </section>
 
@@ -315,6 +342,89 @@
       window.location.href = url.toString();
     });
 
+    let verifiedServerName = null;
+
+    const verifyBtn = document.getElementById("verify-nitrado-btn");
+    const nitradoStatus = document.getElementById("nitrado-status");
+    const planSection = document.getElementById("plan-section");
+
+    verifyBtn.addEventListener("click", async () => {
+      const nitradoServiceId = document.getElementById("nitrado-service-id").value.trim();
+      const nitradoToken = document.getElementById("nitrado-token").value.trim();
+      nitradoStatus.style.color = "var(--muted)";
+      nitradoStatus.textContent = "";
+
+      if (!nitradoServiceId || !nitradoToken) {
+        nitradoStatus.style.color = "#ff6b6b";
+        nitradoStatus.textContent = "Preenche o ID do serviço e o token primeiro.";
+        return;
+      }
+
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = "Verificando...";
+      planSection.style.display = "none";
+      verifiedServerName = null;
+
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/nitrado-verificar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nitradoServiceId, nitradoToken }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.serverName) throw new Error(data.error || "Não consegui verificar.");
+
+        verifiedServerName = data.serverName;
+        nitradoStatus.style.color = "var(--accent2)";
+        nitradoStatus.textContent = `✅ Servidor encontrado: ${data.serverName}`;
+        planSection.style.display = "flex";
+      } catch (err) {
+        nitradoStatus.style.color = "#ff6b6b";
+        nitradoStatus.textContent = "Erro: " + err.message;
+      } finally {
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = "🔍 Verificar servidor";
+      }
+    });
+
+    const pixSection = document.getElementById("pix-section");
+    const pixStatus = document.getElementById("pix-status");
+
+    document.getElementById("pix-copy-btn").addEventListener("click", () => {
+      const code = document.getElementById("pix-code").value;
+      navigator.clipboard.writeText(code).then(() => {
+        pixStatus.textContent = "Código copiado! Aguardando pagamento...";
+      });
+    });
+
+    async function pollPaymentStatus(externalReference) {
+      const deadline = Date.now() + 10 * 60 * 1000; // 10 min
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        try {
+          const res = await fetch(`${FUNCTIONS_URL}/check-status?ref=${encodeURIComponent(externalReference)}`);
+          const data = await res.json();
+          if (data.status === "active") {
+            pixStatus.style.color = "var(--accent2)";
+            pixStatus.textContent = "✅ Pagamento confirmado! Agora adiciona o bot no seu servidor:";
+            const inviteLink = document.createElement("a");
+            inviteLink.href =
+              "https://discord.com/oauth2/authorize?client_id=" + DISCORD_CLIENT_ID +
+              "&permissions=8&response_type=code&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
+              "&integration_type=0&scope=bot+applications.commands&state=invite";
+            inviteLink.textContent = "🔗 Adicionar bot ao Discord";
+            inviteLink.className = "btn btn-primary";
+            inviteLink.style.marginTop = "10px";
+            pixSection.appendChild(inviteLink);
+            return;
+          }
+        } catch {
+          // ignora erro de rede pontual, tenta de novo no proximo ciclo
+        }
+      }
+      pixStatus.textContent = "Ainda não recebi a confirmação — se já pagou, aguarda mais um pouco.";
+    }
+
     checkoutForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const session = getSession();
@@ -326,12 +436,17 @@
         errorEl.textContent = "Sessão expirada — entra com Discord de novo.";
         return;
       }
+      if (!verifiedServerName) {
+        errorEl.textContent = "Verifica o servidor Nitrado primeiro.";
+        return;
+      }
 
       const payload = {
         email: document.getElementById("email").value.trim(),
+        customerName: document.getElementById("customer-name").value.trim(),
         planType: document.getElementById("plan").value,
         siteSessionToken: session.token,
-        serverName: document.getElementById("server-name").value.trim(),
+        serverName: verifiedServerName,
         nitradoServiceId: document.getElementById("nitrado-service-id").value.trim(),
         nitradoToken: document.getElementById("nitrado-token").value.trim(),
       };
@@ -346,8 +461,19 @@
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok || !data.checkoutUrl) throw new Error(data.error || "Falha ao gerar pagamento");
-        window.location.href = data.checkoutUrl;
+        if (!res.ok) throw new Error(data.error || "Falha ao gerar pagamento");
+
+        if (data.pix) {
+          checkoutForm.style.display = "none";
+          document.getElementById("pix-qr-img").src = "data:image/png;base64," + data.pix.qrCodeBase64;
+          document.getElementById("pix-code").value = data.pix.qrCode;
+          pixSection.style.display = "flex";
+          pollPaymentStatus(data.externalReference);
+        } else if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          throw new Error("Resposta inesperada do pagamento.");
+        }
       } catch (err) {
         errorEl.textContent = "Erro: " + err.message;
         btn.disabled = false;
