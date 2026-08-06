@@ -32,15 +32,26 @@
   var params = new URLSearchParams(window.location.search);
   var code = params.get("code");
   var error = params.get("error");
+  var state = params.get("state");
 
   if (error) {
-    statusEl.textContent = "Login cancelado.";
+    statusEl.textContent = state === "invite" ? "Convite cancelado." : "Login cancelado.";
     setTimeout(function(){ window.location.href = "../../"; }, 1500);
     return;
   }
 
   if (!code) {
     statusEl.textContent = "Link inválido — volta e tenta de novo.";
+    return;
+  }
+
+  // Convite do bot usa esse MESMO redirect (pra dar uma tela de sucesso),
+  // mas nao precisa trocar o code por nada — quem faz o vinculo de
+  // verdade e o comando /adm-bot-iniciar rodado no servidor Discord do
+  // cliente (o guildCreate + esse comando ja resolvem tudo do lado do
+  // bot). Aqui e so cosmetico.
+  if (state === "invite") {
+    statusEl.textContent = "🎉 Bot adicionado! Agora entra no seu servidor Discord e roda /adm-bot-iniciar pra finalizar.";
     return;
   }
 
