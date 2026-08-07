@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel — FTZ Bot</title>
+<meta name="description" content="Configurações do FTZ Bot pelo navegador — sem precisar digitar comando." />
+<style>
+  :root{
+    --bg: #000000;
+    --panel: #0b0b0a;
+    --card: #111110;
+    --card-alt: #191918;
+    --border: #222221;
+    --border-soft: #2a2a28;
+    --text: #eeeeec;
+    --text-dim: #b5b3ad;
+    --text-faint: #7c7b74;
+    --text-faintest: #6f6d66;
+    --gold: #fae022;
+    --gold-soft: #d4af37;
+    --blurple: #5865f2;
+    --green: #46a758;
+    --red: #e54d2e;
+    --radius: 10px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    font-size:15px;
+    min-height:100vh;
+  }
+
+  .layout{display:flex;min-height:100vh;}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    width:250px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    padding:20px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+  .brand{
+    display:flex;align-items:center;gap:8px;
+    padding:0 6px;
+    font-weight:700;
+    font-size:16px;
+    letter-spacing:0.5px;
+  }
+  .brand svg{flex-shrink:0;}
+
+  .server-card{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+  }
+  .server-card .icon{
+    width:34px;height:34px;border-radius:8px;flex-shrink:0;
+    background:linear-gradient(135deg,#2c2c2a,#111);
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
+  .server-card .meta{display:flex;flex-direction:column;line-height:1.3;overflow:hidden;}
+  .server-card .name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .server-card .sub{font-size:11.5px;color:var(--text-faintest);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .nav-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--text-faintest);
+    padding:0 8px;
+    margin-bottom:2px;
+  }
+  .nav{display:flex;flex-direction:column;gap:2px;}
+  .nav a{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 10px;
+    border-radius:7px;
+    color:var(--text-dim);
+    text-decoration:none;
+    font-size:13.5px;
+    font-weight:500;
+  }
+  .nav a svg{opacity:.8;flex-shrink:0;}
+  .nav a:hover{background:#1a1a19;color:var(--text);}
+  .nav a.active{background:var(--card-alt);color:var(--text);font-weight:600;}
+  .nav a.disabled{opacity:.45;cursor:default;pointer-events:none;}
+
+  .sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:8px;}
+  .btn-ghost-block{
+    text-align:center;
+    padding:9px 0;
+    border-radius:7px;
+    color:var(--text-faint);
+    font-size:12.5px;
+    border:1px dashed var(--border-soft);
+    cursor:pointer;
+    background:none;
+  }
+
+  /* ---------- MAIN ---------- */
+  .main{flex:1;min-width:0;padding:26px 34px 60px;}
+
+  .breadcrumb{
+    font-size:13px;color:var(--text-faint);
+    display:flex;align-items:center;gap:6px;margin-bottom:18px;
+  }
+  .breadcrumb b{color:var(--text);font-weight:600;}
+
+  .page-head{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    margin-bottom:22px;flex-wrap:wrap;gap:14px;
+  }
+  .page-head h1{
+    font-size:32px;margin:0 0 6px;letter-spacing:-0.01em;font-weight:700;
+  }
+  .page-head p{margin:0;color:var(--text-faint);font-size:14px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    height:44px;padding:0 16px;border-radius:8px;
+    font-size:13.5px;font-weight:600;
+    border:1px solid var(--border);
+    background:var(--card);color:var(--text);
+    cursor:pointer;white-space:nowrap;
+  }
+  .btn.gold{
+    background:linear-gradient(180deg,#fbe95c,#f4d400);
+    color:#141200;border:1px solid transparent;
+  }
+  .btn.small{height:38px;padding:0 14px;font-size:13px;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;filter:none;}
+
+  /* ---------- EDITOR CARD ---------- */
+  .editor-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    margin-bottom:16px;
+  }
+  .editor-card .eyebrow{
+    font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--gold-soft);font-weight:700;margin-bottom:4px;
+  }
+  .editor-card h3{margin:0 0 4px;font-size:18px;}
+  .editor-card > p{margin:0 0 18px;color:var(--text-faint);font-size:13px;}
+
+  .field-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:18px;
+  }
+  .field label{
+    display:block;font-size:13.5px;font-weight:600;margin-bottom:4px;
+  }
+  .field .hint{margin:0 0 10px;color:var(--text-faintest);font-size:12.5px;line-height:1.5;}
+  .field input[type="text"], .field input[type="number"]{
+    width:100%;height:44px;padding:0 14px;
+    background:var(--panel);border:1px solid var(--border-soft);border-radius:8px;
+    color:var(--text);font-size:13.8px;font-family:inherit;
+  }
+  .field input:focus{outline:none;border-color:var(--gold-soft);}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+
+  .select-box{
+    position:relative;
+    display:flex;align-items:center;gap:10px;
+    height:46px;padding:0 14px;
+    background:var(--panel);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .select-box:hover{border-color:#3a3a38;}
+  .select-box.open{border-color:var(--gold-soft);}
+  .select-box .val{flex:1;font-size:13.8px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .select-box .val.placeholder{color:var(--text-faintest);}
+  .select-box .chev{color:var(--text-faint);transition:transform .15s;flex-shrink:0;}
+  .select-box.open .chev{transform:rotate(180deg);}
+
+  .select-menu{
+    position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;
+    background:var(--card-alt);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    padding:6px;
+    box-shadow:0 12px 28px rgba(0,0,0,.5);
+    display:none;
+  }
+  .select-menu.show{display:block;}
+  .select-item{
+    display:flex;align-items:center;gap:9px;
+    padding:9px 10px;border-radius:6px;
+    font-size:13.5px;color:var(--text-dim);
+    cursor:pointer;
+  }
+  .select-item:hover{background:#222220;color:var(--text);}
+
+  .editor-footer{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:20px;padding-top:16px;border-top:1px solid var(--border);
+    flex-wrap:wrap;gap:10px;
+  }
+  .editor-footer .status{font-size:12.5px;color:var(--text-faintest);display:flex;align-items:center;gap:6px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--text-faintest);}
+  .dot.saved{background:var(--green);}
+  .dot.dirty{background:var(--gold-soft);}
+
+  /* ---------- SETTINGS GRID ---------- */
+  .section-title{margin:38px 0 4px;font-size:20px;font-weight:700;}
+  .section-sub{margin:0 0 16px;color:var(--text-faint);font-size:13.5px;}
+
+  .settings-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+  }
+  .setting-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .setting-card h4{margin:0 0 6px;font-size:14.5px;}
+  .setting-card p{margin:0 0 14px;color:var(--text-faintest);font-size:12.8px;line-height:1.5;}
+
+  .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .switch{
+    width:38px;height:22px;border-radius:20px;position:relative;flex-shrink:0;transition:background .15s;
+  }
+  .switch.on{background:var(--green);}
+  .switch.off{background:#3a2a25;}
+  .switch::after{
+    content:"";position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s, right .15s;
+  }
+  .switch.on::after{right:2px;}
+  .switch.off::after{left:2px;}
+  .toggle .label{font-size:12px;font-weight:700;letter-spacing:.04em;}
+  .toggle .label.on{color:var(--green);}
+  .toggle .label.off{color:#f0623f;}
+
+  .login-screen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:24px;
+  }
+  .login-screen h1{font-size:22px;margin:0;}
+  .login-screen p{color:var(--text-faint);margin:0;max-width:360px;font-size:13.5px;}
+  .disc-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:0 20px;height:46px;border-radius:8px;
+    font-size:14px;font-weight:600;color:#fff;
+    border:none;background:var(--blurple);cursor:pointer;
+  }
+  .error-text{color:#ff8a70;font-size:13px;}
+  .hidden{display:none !important;}
+
+  @media (max-width:880px){
+    .sidebar{display:none;}
+    .main{padding:20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen hidden" id="loginScreen">
+  <h1>🎮 Painel FTZ Bot</h1>
+  <p>Entra com Discord pra configurar o bot do seu servidor DayZ sem precisar digitar comando.</p>
+  <button class="disc-btn" id="loginBtn">Entrar com Discord</button>
+  <p class="error-text hidden" id="loginError"></p>
+</div>
+
+<div class="layout hidden" id="appLayout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 7v6c0 5 3.8 8.7 9 9 5.2-.3 9-4 9-9V7l-9-5Z" fill="#fae022"/></svg>
+      FTZ BOT
+    </div>
+
+    <div class="server-card">
+      <div class="icon">🎮</div>
+      <div class="meta">
+        <span class="name" id="sidebarServerName">Servidor</span>
+        <span class="sub" id="sidebarUser">@usuario</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="nav-label">Main Menu</div>
+      <nav class="nav">
+        <a href="#" class="active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2" stroke="currentColor" stroke-width="1.6"/></svg>Configurações</a>
+        <a href="#" class="disabled"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" stroke="currentColor" stroke-width="1.6"/></svg>Painel visual (em breve)</a>
+      </nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-ghost-block" id="logoutBtn">Sair</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="breadcrumb"><span id="breadcrumbServer">Servidor</span> / <b>Configurações</b></div>
+
+    <div class="page-head">
+      <div>
+        <h1>Configurações</h1>
+        <p>Mesmas configs dos comandos /adm-* — mudar aqui reflete no bot na hora, sem reiniciar nada.</p>
+      </div>
+    </div>
+
+    <p class="error-text hidden" id="loadError"></p>
+
+    <div id="settingsContent" class="hidden">
+
+      <h2 class="section-title">Anti-cheat &amp; construção</h2>
+      <p class="section-sub">Limite combinado de canteiro/fogueira e bloqueio por tipo de dispositivo.</p>
+      <div class="editor-card">
+        <div class="field-grid">
+          <div class="field">
+            <label>Limite de canteiro/fogueira</label>
+            <p class="hint">GardenPlot + Fireplace contam pro mesmo limite combinado, dentro da janela de tempo abaixo. Passou do limite → ban automático.</p>
+            <div class="field-row">
+              <div class="field">
+                <label style="font-size:12px;color:var(--text-faintest);font-weight:500;">Quantidade</label>
+                <input type="number" id="placementLimitCount" min="0" value="3" />
+              </div>
+              <div class="field">
+                <label style="font-size:12px;color:var(--text-faintest);font-weight:500;">Janela (minutos)</label>
+                <input type="number" id="placementWindowMinutes" min="1" value="30" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Bloqueio por dispositivo (xCloud/PC)</label>
+            <p class="hint">Bane automaticamente quem logar com o tipo de dispositivo escolhido (lido do .RPT). Deixe "Desativado" pra não checar.</p>
+            <div class="select-box" data-select="deviceType">
+              <span class="val" id="deviceTypeVal">Desativado</span>
+              <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <div class="select-menu">
+                <div class="select-item" data-value="">Desativado</div>
+                <div class="select-item" data-value="desktop">Bloquear "desktop" (PC + xCloud)</div>
+                <div class="select-item" data-value="console">Bloquear "console"</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Economia</h2>
+      <p class="section-sub">Payout passivo de DZCoins pra quem está ativo no servidor.</p>
+      <div class="editor-card">
+        <div class="field-grid">
+          <div class="field">
+            <label>Valor do payout</label>
+            <p class="hint">DZCoins pagos automaticamente por intervalo pra jogador ativo. 0 desativa.</p>
+            <input type="number" id="payoutAmount" min="0" value="0" />
+          </div>
+          <div class="field">
+            <label>Intervalo (minutos)</label>
+            <p class="hint">De quanto em quanto tempo o payout passivo roda.</p>
+            <input type="number" id="payoutIntervalMinutes" min="1" value="60" />
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Loja &amp; Patente</h2>
+      <p class="section-sub">Cargo com compra grátis na loja e ID do cargo de admin do bot.</p>
+      <div class="editor-card">
+        <div class="field-grid">
+          <div class="field">
+            <label>ID do cargo com compra grátis</label>
+            <p class="hint">Quem tiver esse cargo compra qualquer item da loja sem gastar DZCoins. Ative o Modo Desenvolvedor no Discord, clique com botão direito no cargo → Copiar ID. Deixe em branco pra desativar.</p>
+            <input type="text" id="lojaAdminRoleId" placeholder="ID do cargo (ex: 123456789012345678)" />
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Geral</h2>
+      <p class="section-sub">Ligados/desligados que não precisam de valor, só ativar ou não.</p>
+      <div class="settings-grid">
+        <div class="setting-card">
+          <h4>Sempre online</h4>
+          <p>O bot reinicia o servidor sozinho na Nitrado se ele cair, sem precisar de ninguém rodando comando.</p>
+          <div class="toggle" data-toggle="sempreOnline">
+            <div class="switch off"></div><span class="label off">INATIVO</span>
+          </div>
+        </div>
+        <div class="setting-card">
+          <h4>Sistema de Patente</h4>
+          <p>Cria 1 cargo do Discord por patente e troca sozinho conforme o jogador sobe/desce (precisa de /vincular).</p>
+          <div class="toggle" data-toggle="patenteAtivo">
+            <div class="switch off"></div><span class="label off">INATIVO</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-footer" style="margin-top:24px;">
+        <div class="status"><span class="dot" id="saveDot"></span><span id="saveText">Sem alterações</span></div>
+        <button class="btn gold small" id="saveBtn" disabled>Salvar alterações</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const DISCORD_CLIENT_ID = "1533841269648916550";
+  const REDIRECT_URI = "https://facincanitech.github.io/ftz/auth/callback/";
+  const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+
+  const loginScreen = document.getElementById("loginScreen");
+  const appLayout = document.getElementById("appLayout");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginError = document.getElementById("loginError");
+  const loadError = document.getElementById("loadError");
+  const settingsContent = document.getElementById("settingsContent");
+
+  let state = {};
+  let dirty = false;
+
+  function getSession() {
+    const raw = localStorage.getItem("ftz_site_session");
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { localStorage.removeItem("ftz_site_session"); return null; }
+  }
+
+  loginBtn.addEventListener("click", () => {
+    const url = new URL("https://discord.com/oauth2/authorize");
+    url.searchParams.set("client_id", DISCORD_CLIENT_ID);
+    url.searchParams.set("redirect_uri", REDIRECT_URI);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", "identify");
+    url.searchParams.set("state", "painel");
+    window.location.href = url.toString();
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("ftz_site_session");
+    window.location.reload();
+  });
+
+  function markDirty() {
+    if (dirty) return;
+    dirty = true;
+    document.getElementById("saveDot").classList.remove("saved");
+    document.getElementById("saveDot").classList.add("dirty");
+    document.getElementById("saveText").textContent = "Alterações não salvas";
+    document.getElementById("saveBtn").disabled = false;
+  }
+
+  function setToggle(el, on) {
+    const sw = el.querySelector(".switch");
+    const label = el.querySelector(".label");
+    sw.classList.toggle("on", on);
+    sw.classList.toggle("off", !on);
+    label.classList.toggle("on", on);
+    label.classList.toggle("off", !on);
+    label.textContent = on ? "ATIVO" : "INATIVO";
+  }
+
+  document.querySelectorAll(".toggle").forEach((el) => {
+    el.addEventListener("click", () => {
+      const key = el.dataset.toggle;
+      state.settings[key] = !state.settings[key];
+      setToggle(el, state.settings[key]);
+      markDirty();
+    });
+  });
+
+  const deviceSelect = document.querySelector('.select-box[data-select="deviceType"]');
+  const deviceMenu = deviceSelect.querySelector(".select-menu");
+  const deviceVal = document.getElementById("deviceTypeVal");
+  deviceSelect.addEventListener("click", (e) => {
+    deviceSelect.classList.toggle("open");
+    deviceMenu.classList.toggle("show");
+    e.stopPropagation();
+  });
+  deviceMenu.querySelectorAll(".select-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      state.settings.blockedDeviceType = item.dataset.value;
+      deviceVal.textContent = item.textContent;
+      deviceSelect.classList.remove("open");
+      deviceMenu.classList.remove("show");
+      markDirty();
+      e.stopPropagation();
+    });
+  });
+  document.addEventListener("click", () => {
+    deviceSelect.classList.remove("open");
+    deviceMenu.classList.remove("show");
+  });
+
+  ["placementLimitCount", "placementWindowMinutes", "payoutAmount", "payoutIntervalMinutes", "lojaAdminRoleId"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", (e) => {
+      const key = id;
+      state.settings[key] = e.target.type === "number" ? Number(e.target.value) : e.target.value;
+      markDirty();
+    });
+  });
+
+  document.getElementById("saveBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    document.getElementById("saveText").textContent = "Salvando...";
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/painel-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: state.token, settings: state.settings }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Falha ao salvar.");
+      dirty = false;
+      document.getElementById("saveDot").classList.remove("dirty");
+      document.getElementById("saveDot").classList.add("saved");
+      document.getElementById("saveText").textContent = "Alterações salvas";
+    } catch (err) {
+      document.getElementById("saveText").textContent = err.message;
+      btn.disabled = false;
+    }
+  });
+
+  function renderDeviceType(value) {
+    const item = [...deviceMenu.querySelectorAll(".select-item")].find((i) => i.dataset.value === (value || ""));
+    deviceVal.textContent = item ? item.textContent : "Desativado";
+  }
+
+  async function loadSession() {
+    const session = getSession();
+    if (!session) {
+      loginScreen.classList.remove("hidden");
+      return;
+    }
+    state.token = session.token;
+
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/painel-session?token=${encodeURIComponent(session.token)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao carregar sessão.");
+
+      state.settings = data.settings;
+      appLayout.classList.remove("hidden");
+      settingsContent.classList.remove("hidden");
+
+      document.getElementById("sidebarServerName").textContent = data.serverName || "Servidor";
+      document.getElementById("breadcrumbServer").textContent = data.serverName || "Servidor";
+      document.getElementById("sidebarUser").textContent = "@" + data.discordUser.username;
+
+      document.getElementById("placementLimitCount").value = data.settings.placementLimitCount;
+      document.getElementById("placementWindowMinutes").value = data.settings.placementWindowMinutes;
+      document.getElementById("payoutAmount").value = data.settings.payoutAmount;
+      document.getElementById("payoutIntervalMinutes").value = data.settings.payoutIntervalMinutes;
+      document.getElementById("lojaAdminRoleId").value = data.settings.lojaAdminRoleId;
+      renderDeviceType(data.settings.blockedDeviceType);
+
+      document.querySelectorAll(".toggle").forEach((el) => setToggle(el, Boolean(data.settings[el.dataset.toggle])));
+    } catch (err) {
+      loadError.textContent = err.message;
+      loadError.classList.remove("hidden");
+      appLayout.classList.remove("hidden");
+    }
+  }
+
+  loadSession();
+</script>
+</body>
+</html>
