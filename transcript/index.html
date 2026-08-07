@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Transcrição de Ticket — FTZ Bot</title>
+<meta name="description" content="Transcrição completa de um ticket de suporte fechado." />
+<style>
+  :root{ --bg:#000; --card:#111110; --border:#222221; --text:#eeeeec; --text-dim:#b5b3ad; --text-faint:#7c7b74; --gold:#fae022; }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; padding:24px; }
+  .wrap{ max-width:720px; margin:0 auto; }
+  .head{ border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:20px; }
+  .head h1{ font-size:22px; margin:0 0 8px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--text-faint); }
+  .meta b{ color:var(--text-dim); }
+  .msg{ display:flex; gap:12px; padding:10px 0; }
+  .msg img{ width:38px; height:38px; border-radius:50%; flex-shrink:0; background:#222; }
+  .msg .body{ min-width:0; }
+  .msg .row{ display:flex; align-items:baseline; gap:8px; }
+  .msg .author{ font-weight:600; font-size:14px; }
+  .msg .time{ font-size:11px; color:var(--text-faint); }
+  .msg .content{ font-size:14.5px; color:var(--text-dim); white-space:pre-wrap; word-break:break-word; }
+  .msg .attach{ display:block; margin-top:6px; font-size:12.5px; color:var(--gold); text-decoration:none; }
+  .empty{ color:var(--text-faint); text-align:center; padding:40px 0; }
+  .error{ text-align:center; padding:60px 24px; color:var(--text-faint); }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap"><div class="error">Carregando...</div></div>
+
+<script>
+  const FUNCTIONS_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1";
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+  const wrap = document.getElementById("wrap");
+
+  function esc(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function fmt(dateStr) {
+    return dateStr ? new Date(dateStr).toLocaleString("pt-BR") : "?";
+  }
+
+  async function load() {
+    if (!id) {
+      wrap.innerHTML = `<div class="error">Link inválido.</div>`;
+      return;
+    }
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/ticket-transcript?id=${encodeURIComponent(id)}`);
+      const t = await res.json();
+      if (!res.ok) throw new Error(t.error || "Falha ao carregar.");
+
+      document.title = `Transcrição — ticket-${t.ticketNumber}`;
+
+      const messages = Array.isArray(t.messages) ? t.messages : [];
+      const messagesHtml = messages.length
+        ? messages
+            .map((m) => {
+              const attachments = Array.isArray(m.attachments)
+                ? m.attachments.map((a) => `<a class="attach" href="${esc(a.url)}" target="_blank" rel="noopener">📎 ${esc(a.name || "anexo")}</a>`).join("")
+                : "";
+              return `<div class="msg">
+                <img src="${esc(m.authorAvatar || "")}" alt="" />
+                <div class="body">
+                  <div class="row"><span class="author">${esc(m.authorUsername)}</span><span class="time">${esc(fmt(m.createdAt))}</span></div>
+                  <div class="content">${esc(m.content)}</div>
+                  ${attachments}
+                </div>
+              </div>`;
+            })
+            .join("")
+        : `<div class="empty">Nenhuma mensagem nesse ticket.</div>`;
+
+      wrap.innerHTML = `
+        <div class="head">
+          <h1>🎫 ticket-${t.ticketNumber}${t.typeLabel ? ` — ${esc(t.typeLabel)}` : ""}</h1>
+          <div class="meta">
+            <span><b>Autor:</b> ${esc(t.openerUsername)}</span>
+            <span><b>Reivindicado por:</b> ${esc(t.claimedByUsername || "Ninguém")}</span>
+            <span><b>Fechado por:</b> ${esc(t.closedByUsername)}</span>
+            ${t.closeReason ? `<span><b>Motivo:</b> ${esc(t.closeReason)}</span>` : ""}
+            <span><b>Aberto:</b> ${esc(fmt(t.openedAt))}</span>
+            <span><b>Fechado:</b> ${esc(fmt(t.closedAt))}</span>
+          </div>
+        </div>
+        ${messagesHtml}
+      `;
+    } catch (err) {
+      wrap.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
