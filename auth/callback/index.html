@@ -65,7 +65,7 @@
       if (!r.res.ok) throw new Error(r.body.error || "Falha ao entrar com Discord.");
       localStorage.setItem("ftz_site_session", JSON.stringify(r.body));
       statusEl.textContent = "Login feito! Redirecionando...";
-      window.location.href = state === "painel" ? "../../painel/" : "../../";
+      window.location.href = "../../";
     })
     .catch(function(err){
       statusEl.className = "error";
