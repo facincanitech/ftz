@@ -331,7 +331,7 @@
   }
 
   function ensureMapImage(mapInfo) {
-    if (mapInfo.key !== currentMapKey) {
+    if (mapInfo.key !== currentMapKey || !document.getElementById("mapBox")) {
       currentMapKey = mapInfo.key;
       zoomLevel = 1;
       panX = 0;
@@ -458,6 +458,7 @@
     const frame = currentFrames[clamped];
     timelineLabel.textContent = formatFrameLabel(frame.msEpoch, clamped, currentFrames.length);
     if (currentMapInfo) renderPlayers(currentMapInfo, frame.players, "modo replay");
+    else mapArea.innerHTML = '<div class="error">Não consegui carregar a info do mapa — tenta recarregar a página.</div>';
   }
 
   function setFrames(frames) {
