@@ -1,1 +1,580 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mapa ao Vivo — FTZ Bot</title><meta name="description" content="Posição dos jogadores online em tempo real."><style>:root{--bg:#0f1115;--surface-1:#10131a;--surface-2:#171a21;--border:#262b36;--border-strong:#333a4a;--text-primary:#e6e8ec;--text-secondary:#b6bcc8;--text-muted:#8890a0;--accent:#5865f2;--success:#2ecc71;--danger:#ff6b6b}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(circle at 50% 0,#1a1e2a 0,var(--bg) 55%);color:var(--text-primary);min-height:100vh;padding:20px}.wrap{max-width:900px;margin:0 auto}header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}header h1{font-size:17px;margin:0;font-weight:600}header .meta{font-size:12px;color:var(--text-muted)}header .meta strong{color:var(--success)}.panel{background:var(--surface-2);border:.5px solid var(--border);border-radius:8px;padding:12px}.map-viewport{position:relative;width:100%;aspect-ratio:1/1;border-radius:6px;overflow:hidden;border:.5px solid var(--border-strong);background:var(--surface-1);cursor:zoom-in}.map-viewport.zoomed{cursor:grab}.map-viewport.dragging{cursor:grabbing}.map-box{position:absolute;inset:0;transform-origin:50% 50%;transition:transform 80ms linear}.map-box.no-transition{transition:none}.map-box img{width:100%;height:100%;display:block;object-fit:cover;pointer-events:none}.zoom-hint{position:absolute;bottom:8px;right:10px;font-size:10px;color:var(--text-muted);background:rgba(6,9,15,.7);padding:2px 6px;border-radius:4px;pointer-events:none}.dot{position:absolute;width:12px;height:12px;margin-left:-6px;margin-top:-6px;border-radius:50%;background:var(--dot-color,var(--success));border:2px solid #06120a;box-shadow:0 0 0 3px var(--dot-glow,rgba(46,204,113,.25));cursor:default;transform:scale(var(--dot-scale,1));transition:left .6s ease,top .6s ease,transform .15s ease}.dot::after{content:attr(data-label);position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#06090f;border:.5px solid var(--border-strong);color:var(--text-primary);padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s}.dot:hover::after{opacity:1}.dot:hover{box-shadow:0 0 0 5px var(--dot-glow,rgba(46,204,113,.35));z-index:5}.empty,.error{text-align:center;color:var(--text-muted);font-size:13px;padding:40px 12px}.error{color:var(--danger)}.players-list{margin-top:12px;font-size:12px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:6px}.players-list span{background:var(--surface-1);border:.5px solid var(--border);border-radius:4px;padding:3px 8px}</style></head><body><div class="wrap"><header><h1>🗺️ Mapa ao Vivo</h1><div class="meta" id="meta">carregando…</div></header><div class="panel"><div id="mapArea"><div class="empty">carregando…</div></div><div class="players-list" id="playersList"></div></div></div><script>const params=new URLSearchParams(location.search),token=params.get("token"),FN_URL="https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1/live-map-session",REFRESH_MS=36e4,mapArea=document.getElementById("mapArea"),meta=document.getElementById("meta"),playersList=document.getElementById("playersList");let currentMapKey=null,zoomLevel=1,panX=0,panY=0;const MIN_ZOOM=1,MAX_ZOOM=6;function clampPan(e){const t=e-e*zoomLevel;panX=Math.min(0,Math.max(t,panX)),panY=Math.min(0,Math.max(t,panY))}function applyZoom(){const e=document.getElementById("mapBox"),t=document.getElementById("mapViewport");if(!e||!t)return;e.style.transformOrigin="0 0",e.style.transform=`translate(${panX}px, ${panY}px) scale(${zoomLevel})`,t.classList.toggle("zoomed",zoomLevel>1);const a=1/Math.sqrt(zoomLevel);e.querySelectorAll(".dot").forEach(e=>{e.style.setProperty("--dot-scale",a)})}mapArea.addEventListener("wheel",e=>{const t=e.target.closest(".map-viewport");if(!t)return;e.preventDefault();const a=t.getBoundingClientRect(),n=e.clientX-a.left,o=e.clientY-a.top,r=(n-panX)/zoomLevel,l=(o-panY)/zoomLevel,s=e.deltaY<0?1.25:.8,i=Math.min(6,Math.max(1,zoomLevel*s));panX=n-r*i,panY=o-l*i,zoomLevel=i,1===zoomLevel?(panX=0,panY=0):clampPan(a.width),applyZoom()},{passive:!1});let dragging=!1,dragStartX=0,dragStartY=0,dragPanStartX=0,dragPanStartY=0;function colorForName(e){let t=0;for(let a=0;a<e.length;a++)t=31*t+e.charCodeAt(a)>>>0;return`hsl(${t%360}, 75%, 55%)`}function timeAgo(e){if(!e)return"?";const t=Math.max(0,Math.floor((Date.now()-new Date(e).getTime())/1e3));return t<60?`${t}s atrás`:`${Math.floor(t/60)}min atrás`}function render(e){meta.innerHTML=`Mapa: <strong>${e.map.displayName}</strong> · ${e.players.length} online · atualizado ${timeAgo(e.generatedAt)}`,e.map.key!==currentMapKey&&(currentMapKey=e.map.key,zoomLevel=1,originX=50,originY=50,mapArea.innerHTML=`<div class="map-viewport" id="mapViewport"><div class="map-box" id="mapBox"><img src="${e.map.imageUrl}" alt="${e.map.displayName}" /></div><div class="zoom-hint">🖱️ scroll pra zoom</div></div>`);const t=document.getElementById("mapBox");if(t){if(t.querySelectorAll(".dot").forEach(e=>e.remove()),playersList.innerHTML="",!e.players.length){const e=document.createElement("div");return e.className="empty",e.style.position="absolute",e.style.inset="0",e.style.display="flex",e.style.alignItems="center",e.style.justifyContent="center",e.textContent="Ninguém online no momento.",void t.appendChild(e)}for(const a of e.players){const n=a.x/e.map.worldSize*100,o=100*(1-a.y/e.map.worldSize),r=colorForName(a.gamertag),l=document.createElement("div");l.className="dot",l.style.left=`${n}%`,l.style.top=`${o}%`,l.style.setProperty("--dot-color",r),l.style.setProperty("--dot-glow",r.replace("55%)","55%, 0.3)").replace("hsl(","hsla(")),l.dataset.label=`${a.gamertag}${null!=a.xp?` · ${a.xp} XP`:""}`,t.appendChild(l);const s=document.createElement("span");s.style.color=r,s.textContent=`● ${a.gamertag}`,playersList.appendChild(s)}applyZoom()}}async function load(){if(token)try{const e=await fetch(`${FN_URL}?token=${encodeURIComponent(token)}`),t=await e.json();if(!e.ok)throw new Error(t.error||"Falha ao carregar");render(t)}catch(e){mapArea.innerHTML=`<div class="error">${e.message}</div>`}else mapArea.innerHTML='<div class="error">Link inválido — abre pelo botão "Mapa ao Vivo" no Discord.</div>'}mapArea.addEventListener("mousedown",e=>{const t=e.target.closest(".map-viewport");if(!t||zoomLevel<=1)return;dragging=!0,dragStartX=e.clientX,dragStartY=e.clientY,dragPanStartX=panX,dragPanStartY=panY;const a=document.getElementById("mapBox");a&&a.classList.add("no-transition"),t.classList.add("dragging"),e.preventDefault()}),window.addEventListener("mousemove",e=>{if(!dragging)return;const t=document.getElementById("mapViewport");if(!t)return;const a=t.getBoundingClientRect();panX=dragPanStartX+(e.clientX-dragStartX),panY=dragPanStartY+(e.clientY-dragStartY),clampPan(a.width),applyZoom()}),window.addEventListener("mouseup",()=>{if(!dragging)return;dragging=!1;const e=document.getElementById("mapBox");e&&e.classList.remove("no-transition");const t=document.getElementById("mapViewport");t&&t.classList.remove("dragging")}),load(),setInterval(load,36e4)</script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mapa ao Vivo — FTZ Bot</title>
+<meta name="description" content="Posição dos jogadores online em tempo real." />
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface-1: #10131a;
+    --surface-2: #171a21;
+    --border: #262b36;
+    --border-strong: #333a4a;
+    --text-primary: #e6e8ec;
+    --text-secondary: #b6bcc8;
+    --text-muted: #8890a0;
+    --accent: #5865f2;
+    --success: #2ecc71;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1a1e2a 0%, var(--bg) 55%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .meta { font-size: 12px; color: var(--text-muted); }
+  header .meta strong { color: var(--success); }
+
+  .panel {
+    background: var(--surface-2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .map-viewport {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 0.5px solid var(--border-strong);
+    background: var(--surface-1);
+    cursor: zoom-in;
+  }
+  .map-viewport.zoomed { cursor: grab; }
+  .map-viewport.dragging { cursor: grabbing; }
+  .map-box {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 50%;
+    transition: transform 0.08s linear;
+  }
+  .map-box.no-transition { transition: none; }
+  .map-box img { width: 100%; height: 100%; display: block; object-fit: cover; pointer-events: none; }
+  .zoom-hint {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(6, 9, 15, 0.7);
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: var(--dot-color, var(--success));
+    border: 2px solid #06120a;
+    box-shadow: 0 0 0 3px var(--dot-glow, rgba(46, 204, 113, 0.25));
+    cursor: default;
+    transform: scale(var(--dot-scale, 1));
+    transition: left 0.6s ease, top 0.6s ease, transform 0.15s ease;
+  }
+  .dot::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #06090f;
+    border: 0.5px solid var(--border-strong);
+    color: var(--text-primary);
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .dot:hover::after { opacity: 1; }
+  .dot:hover { box-shadow: 0 0 0 5px var(--dot-glow, rgba(46, 204, 113, 0.35)); z-index: 5; }
+
+  .empty, .error {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 40px 12px;
+  }
+  .error { color: var(--danger); }
+
+  .players-list {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .players-list span {
+    background: var(--surface-1);
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+  }
+
+  .mode-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .mode-tab {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .mode-tab.active { border-color: var(--accent); color: var(--text-primary); background: rgba(88, 101, 242, 0.15); }
+
+  .upload-box {
+    display: none;
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .upload-box.visible { display: block; }
+  .upload-box input[type="file"] { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+
+  .timeline-box { display: none; margin-top: 12px; }
+  .timeline-box.visible { display: flex; align-items: center; gap: 10px; }
+  .timeline-box button {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .timeline-box button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .timeline-box input[type="range"] { flex: 1; }
+  .timeline-box .time-label { font-size: 11px; color: var(--text-muted); min-width: 80px; text-align: right; flex-shrink: 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🗺️ Mapa ao Vivo</h1>
+      <div class="meta" id="meta">carregando…</div>
+    </header>
+    <div class="panel">
+      <div class="mode-tabs">
+        <button type="button" class="mode-tab active" data-mode="live">🟢 Ao Vivo</button>
+        <button type="button" class="mode-tab" data-mode="history">🕒 Últimas 24h</button>
+        <button type="button" class="mode-tab" data-mode="upload">📁 Upload de Log</button>
+      </div>
+      <div class="upload-box" id="uploadBox">
+        Escolhe um arquivo <code>.ADM</code> baixado do servidor (dá pra usar qualquer sessão arquivada, sem limite de 24h).
+        <br /><input type="file" id="uploadInput" accept=".ADM,.adm,.txt" />
+      </div>
+      <div id="mapArea">
+        <div class="empty">carregando…</div>
+      </div>
+      <div class="timeline-box" id="timelineBox">
+        <button type="button" id="playBtn">▶️</button>
+        <input type="range" id="timelineSlider" min="0" max="0" value="0" />
+        <span class="time-label" id="timelineLabel">—</span>
+      </div>
+      <div class="players-list" id="playersList"></div>
+    </div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get("token");
+  const FN_URL = "https://xfzfttpnkxqevjfwijpw.supabase.co/functions/v1/live-map-session";
+  const REFRESH_MS = 6 * 60 * 1000;
+
+  const mapArea = document.getElementById("mapArea");
+  const meta = document.getElementById("meta");
+  const playersList = document.getElementById("playersList");
+
+  let currentMapKey = null;
+  let zoomLevel = 1;
+  let panX = 0;
+  let panY = 0;
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 6;
+
+  function clampPan(rectSize) {
+    const minPan = rectSize - rectSize * zoomLevel;
+    panX = Math.min(0, Math.max(minPan, panX));
+    panY = Math.min(0, Math.max(minPan, panY));
+  }
+
+  function applyZoom() {
+    const mapBox = document.getElementById("mapBox");
+    const viewport = document.getElementById("mapViewport");
+    if (!mapBox || !viewport) return;
+    mapBox.style.transformOrigin = "0 0";
+    mapBox.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+    viewport.classList.toggle("zoomed", zoomLevel > MIN_ZOOM);
+    const dotScale = 1 / Math.sqrt(zoomLevel);
+    mapBox.querySelectorAll(".dot").forEach((d) => {
+      d.style.setProperty("--dot-scale", dotScale);
+    });
+  }
+
+  mapArea.addEventListener(
+    "wheel",
+    (e) => {
+      const viewport = e.target.closest(".map-viewport");
+      if (!viewport) return;
+      e.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const contentX = (mx - panX) / zoomLevel;
+      const contentY = (my - panY) / zoomLevel;
+      const factor = e.deltaY < 0 ? 1.25 : 0.8;
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomLevel * factor));
+      panX = mx - contentX * newZoom;
+      panY = my - contentY * newZoom;
+      zoomLevel = newZoom;
+      if (zoomLevel === MIN_ZOOM) {
+        panX = 0;
+        panY = 0;
+      } else {
+        clampPan(rect.width);
+      }
+      applyZoom();
+    },
+    { passive: false }
+  );
+
+  let dragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragPanStartX = 0;
+  let dragPanStartY = 0;
+
+  mapArea.addEventListener("mousedown", (e) => {
+    const viewport = e.target.closest(".map-viewport");
+    if (!viewport || zoomLevel <= MIN_ZOOM) return;
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragPanStartX = panX;
+    dragPanStartY = panY;
+    const mapBox = document.getElementById("mapBox");
+    if (mapBox) mapBox.classList.add("no-transition");
+    viewport.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const viewport = document.getElementById("mapViewport");
+    if (!viewport) return;
+    const rect = viewport.getBoundingClientRect();
+    panX = dragPanStartX + (e.clientX - dragStartX);
+    panY = dragPanStartY + (e.clientY - dragStartY);
+    clampPan(rect.width);
+    applyZoom();
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    const mapBox = document.getElementById("mapBox");
+    if (mapBox) mapBox.classList.remove("no-transition");
+    const viewport = document.getElementById("mapViewport");
+    if (viewport) viewport.classList.remove("dragging");
+  });
+
+  function colorForName(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    const hue = hash % 360;
+    return `hsl(${hue}, 75%, 55%)`;
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return "?";
+    const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    if (secs < 60) return `${secs}s atrás`;
+    return `${Math.floor(secs / 60)}min atrás`;
+  }
+
+  function ensureMapImage(mapInfo) {
+    if (mapInfo.key !== currentMapKey) {
+      currentMapKey = mapInfo.key;
+      zoomLevel = 1;
+      panX = 0;
+      panY = 0;
+      mapArea.innerHTML =
+        '<div class="map-viewport" id="mapViewport"><div class="map-box" id="mapBox">' +
+        `<img src="${mapInfo.imageUrl}" alt="${mapInfo.displayName}" />` +
+        '</div><div class="zoom-hint">🖱️ scroll pra zoom</div></div>';
+    }
+    return document.getElementById("mapBox");
+  }
+
+  function renderPlayers(mapInfo, players, metaSuffix) {
+    meta.innerHTML = `Mapa: <strong>${mapInfo.displayName}</strong> · ${players.length} jogador(es)${metaSuffix ? " · " + metaSuffix : ""}`;
+
+    const mapBox = ensureMapImage(mapInfo);
+    if (!mapBox) return;
+
+    mapBox.querySelectorAll(".dot").forEach((el) => el.remove());
+    playersList.innerHTML = "";
+
+    if (!players.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.style.position = "absolute";
+      empty.style.inset = "0";
+      empty.style.display = "flex";
+      empty.style.alignItems = "center";
+      empty.style.justifyContent = "center";
+      empty.textContent = "Ninguém pra mostrar nesse momento.";
+      mapBox.appendChild(empty);
+      return;
+    }
+
+    for (const p of players) {
+      const leftPct = (p.x / mapInfo.worldSize) * 100;
+      const topPct = (1 - p.y / mapInfo.worldSize) * 100;
+      const color = colorForName(p.gamertag);
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.style.left = `${leftPct}%`;
+      dot.style.top = `${topPct}%`;
+      dot.style.setProperty("--dot-color", color);
+      dot.style.setProperty("--dot-glow", color.replace("55%)", "55%, 0.3)").replace("hsl(", "hsla("));
+      dot.dataset.label = `${p.gamertag}${p.xp != null ? ` · ${p.xp} XP` : ""}`;
+      mapBox.appendChild(dot);
+
+      const tag = document.createElement("span");
+      tag.style.color = color;
+      tag.textContent = `● ${p.gamertag}`;
+      playersList.appendChild(tag);
+    }
+
+    applyZoom();
+  }
+
+  let currentMapInfo = null;
+
+  async function loadLive() {
+    if (!token) {
+      mapArea.innerHTML = '<div class="error">Link inválido — abre pelo botão "Mapa ao Vivo" no Discord.</div>';
+      return;
+    }
+    try {
+      const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&mode=live`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao carregar");
+      currentMapInfo = data.map;
+      renderPlayers(data.map, data.players, `atualizado ${timeAgo(data.generatedAt)}`);
+    } catch (err) {
+      mapArea.innerHTML = `<div class="error">${err.message}</div>`;
+    }
+  }
+
+  let liveInterval = setInterval(() => {
+    if (currentModeName === "live") loadLive();
+  }, REFRESH_MS);
+
+  const BUCKET_MS = 5 * 60 * 1000;
+
+  function bucketKey(msEpoch) {
+    return Math.round(msEpoch / BUCKET_MS) * BUCKET_MS;
+  }
+
+  function buildFrames(points) {
+    const buckets = new Map();
+    for (const p of points) {
+      const key = bucketKey(p.msEpoch);
+      if (!buckets.has(key)) buckets.set(key, new Map());
+      buckets.get(key).set(p.gamertag, { x: p.x, y: p.y });
+    }
+    const sortedKeys = [...buckets.keys()].sort((a, b) => a - b);
+    const state = new Map();
+    const frames = [];
+    for (const key of sortedKeys) {
+      for (const [name, pos] of buckets.get(key)) state.set(name, pos);
+      frames.push({
+        msEpoch: key,
+        players: [...state.entries()].map(([gamertag, pos]) => ({ gamertag, x: pos.x, y: pos.y })),
+      });
+    }
+    return frames;
+  }
+
+  const timelineBox = document.getElementById("timelineBox");
+  const timelineSlider = document.getElementById("timelineSlider");
+  const timelineLabel = document.getElementById("timelineLabel");
+  const playBtn = document.getElementById("playBtn");
+
+  let currentFrames = [];
+  let playTimer = null;
+
+  function formatFrameLabel(msEpoch, index, total) {
+    const d = new Date(msEpoch);
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mm = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm} (${index + 1}/${total})`;
+  }
+
+  function showFrame(index) {
+    if (!currentFrames.length) return;
+    const clamped = Math.max(0, Math.min(currentFrames.length - 1, index));
+    timelineSlider.value = String(clamped);
+    const frame = currentFrames[clamped];
+    timelineLabel.textContent = formatFrameLabel(frame.msEpoch, clamped, currentFrames.length);
+    if (currentMapInfo) renderPlayers(currentMapInfo, frame.players, "modo replay");
+  }
+
+  function setFrames(frames) {
+    currentFrames = frames;
+    pausePlayback();
+    timelineBox.classList.toggle("visible", frames.length > 0);
+    timelineSlider.max = String(Math.max(0, frames.length - 1));
+    if (!frames.length) {
+      mapArea.innerHTML = '<div class="error">Nenhuma posição encontrada nessa janela — tenta outro período ou arquivo.</div>';
+      return;
+    }
+    showFrame(frames.length - 1);
+  }
+
+  function pausePlayback() {
+    if (playTimer) clearInterval(playTimer);
+    playTimer = null;
+    playBtn.textContent = "▶️";
+  }
+
+  playBtn.addEventListener("click", () => {
+    if (playTimer) {
+      pausePlayback();
+      return;
+    }
+    playBtn.textContent = "⏸️";
+    playTimer = setInterval(() => {
+      const next = Number(timelineSlider.value) + 1;
+      if (next >= currentFrames.length) {
+        pausePlayback();
+        return;
+      }
+      showFrame(next);
+    }, 700);
+  });
+
+  timelineSlider.addEventListener("input", () => {
+    pausePlayback();
+    showFrame(Number(timelineSlider.value));
+  });
+
+  async function loadHistory() {
+    mapArea.innerHTML = '<div class="empty">carregando histórico…</div>';
+    try {
+      const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&mode=history&hours=24`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao carregar histórico");
+      currentMapInfo = data.map;
+      const points = data.points.map((p) => ({ gamertag: p.gamertag, x: p.x, y: p.y, msEpoch: new Date(p.t).getTime() }));
+      setFrames(buildFrames(points));
+    } catch (err) {
+      mapArea.innerHTML = `<div class="error">${err.message}</div>`;
+    }
+  }
+
+  const ADM_LINE_RE = /^(\d{2}):(\d{2}):(\d{2}) \| Player "([^"]+)" \(id=[0-9A-Fa-f]+ pos=<([-\d.]+), ([-\d.]+), ([-\d.]+)>\)/;
+
+  function parseAdmFile(text) {
+    const points = [];
+    let dayOffset = 0;
+    let lastSeconds = -1;
+    for (const line of text.split("\n")) {
+      const m = ADM_LINE_RE.exec(line);
+      if (!m) continue;
+      const [, hh, mm, ss, gamertag, x, y] = m;
+      let seconds = Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
+      if (lastSeconds !== -1 && seconds < lastSeconds - 60) dayOffset += 86400;
+      lastSeconds = seconds;
+      points.push({ gamertag, x: Number(x), y: Number(y), msEpoch: (seconds + dayOffset) * 1000 });
+    }
+    return points;
+  }
+
+  document.getElementById("uploadInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    mapArea.innerHTML = '<div class="empty">lendo arquivo…</div>';
+    try {
+      const text = await file.text();
+      const points = parseAdmFile(text);
+      if (!currentMapInfo) {
+        const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&mode=live`);
+        const data = await res.json();
+        if (res.ok) currentMapInfo = data.map;
+      }
+      setFrames(buildFrames(points));
+    } catch (err) {
+      mapArea.innerHTML = `<div class="error">Falha ao ler o arquivo: ${err.message}</div>`;
+    }
+  });
+
+  let currentModeName = "live";
+  const uploadBox = document.getElementById("uploadBox");
+
+  document.querySelectorAll(".mode-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".mode-tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      currentModeName = tab.dataset.mode;
+      pausePlayback();
+      uploadBox.classList.toggle("visible", currentModeName === "upload");
+      timelineBox.classList.toggle("visible", currentModeName !== "live" && currentFrames.length > 0);
+
+      if (currentModeName === "live") {
+        currentFrames = [];
+        loadLive();
+      } else if (currentModeName === "history") {
+        loadHistory();
+      } else {
+        mapArea.innerHTML = '<div class="empty">Escolhe um arquivo .ADM acima pra começar.</div>';
+        currentFrames = [];
+        timelineBox.classList.remove("visible");
+      }
+    });
+  });
+
+  loadLive();
+</script>
+</body>
+</html>
