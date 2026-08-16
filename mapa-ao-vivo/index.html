@@ -99,16 +99,15 @@
   .dot::after {
     content: attr(data-label);
     position: absolute;
-    bottom: 16px;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(6, 9, 15, 0.8);
-    border: 0.5px solid var(--dot-color, var(--border-strong));
-    color: var(--dot-color, var(--text-primary));
-    padding: 2px 6px;
+    background: rgba(6, 9, 15, 0.45);
+    color: rgba(230, 232, 240, 0.55);
+    padding: 1px 5px;
     border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 9px;
+    font-weight: 400;
     white-space: nowrap;
     pointer-events: none;
   }
@@ -202,7 +201,6 @@
     <div class="panel">
       <div class="mode-tabs">
         <button type="button" class="mode-tab active" data-mode="live">🟢 Ao Vivo</button>
-        <button type="button" class="mode-tab" data-mode="history">🕒 Últimas 24h</button>
         <button type="button" class="mode-tab" data-mode="upload">📁 Upload de Log</button>
       </div>
       <div class="upload-box" id="uploadBox">
@@ -694,24 +692,6 @@
     showFrame(Number(timelineSlider.value));
   });
 
-  // ---------- Modo ULTIMAS 24H ----------
-  async function loadHistory() {
-    mapArea.innerHTML = '<div class="empty">carregando histórico…</div>';
-    try {
-      const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&mode=history&hours=24`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha ao carregar histórico");
-      currentMapInfo = data.map;
-      const points = data.points.map((p) => ({ gamertag: p.gamertag, x: p.x, y: p.y, msEpoch: new Date(p.t).getTime() }));
-      const pvpEvents = (data.pvp ?? [])
-        .filter((ev) => ev.victimPos)
-        .map((ev) => ({ ...ev, msEpoch: new Date(ev.t).getTime() }));
-      setFrames(buildFrames(points, pvpEvents));
-    } catch (err) {
-      mapArea.innerHTML = `<div class="error">${err.message}</div>`;
-    }
-  }
-
   // ---------- Modo UPLOAD DE LOG ----------
   // Mesmo padrao de linha que o parser do bot ja reconhece (src/parser/admLogParser.js)
   // — so a posicao periodica, com ou sem sufixo de evento depois do pos=<...>.
@@ -801,8 +781,6 @@
       if (currentModeName === "live") {
         currentFrames = [];
         loadLive();
-      } else if (currentModeName === "history") {
-        loadHistory();
       } else {
         mapArea.innerHTML = '<div class="empty">Escolhe um arquivo .ADM acima pra começar.</div>';
         currentFrames = [];
