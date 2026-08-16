@@ -102,18 +102,17 @@
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
-    background: #06090f;
-    border: 0.5px solid var(--border-strong);
-    color: var(--text-primary);
-    padding: 3px 7px;
+    background: rgba(6, 9, 15, 0.8);
+    border: 0.5px solid var(--dot-color, var(--border-strong));
+    color: var(--dot-color, var(--text-primary));
+    padding: 2px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 600;
     white-space: nowrap;
-    opacity: 0;
     pointer-events: none;
-    transition: opacity 0.15s;
   }
-  .dot:hover::after { opacity: 1; }
+  .dot:hover::after { z-index: 6; }
   .dot:hover { box-shadow: 0 0 0 5px var(--dot-glow, rgba(46, 204, 113, 0.35)); z-index: 5; }
 
   .empty, .error {
@@ -124,20 +123,6 @@
   }
   .error { color: var(--danger); }
 
-  .players-list {
-    margin-top: 12px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .players-list span {
-    background: var(--surface-1);
-    border: 0.5px solid var(--border);
-    border-radius: 4px;
-    padding: 3px 8px;
-  }
 
   .mode-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
   .mode-tab {
@@ -183,6 +168,29 @@
   .timeline-box button:disabled { opacity: 0.4; cursor: not-allowed; }
   .timeline-box input[type="range"] { flex: 1; }
   .timeline-box .time-label { font-size: 11px; color: var(--text-muted); min-width: 80px; text-align: right; flex-shrink: 0; }
+
+  .window-box { display: none; margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+  .window-box.visible { display: flex; flex-direction: column; gap: 4px; }
+  .window-row { display: flex; align-items: center; gap: 8px; }
+  .window-row label { min-width: 40px; flex-shrink: 0; }
+  .window-row input[type="range"] { flex: 1; }
+  .window-row span { min-width: 50px; text-align: right; flex-shrink: 0; }
+
+  .pvp-toggle-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+  .pvp-toggle-row input { cursor: pointer; }
+
+  .pvp-label {
+    position: absolute;
+    transform: translate(10px, -6px);
+    background: rgba(6, 9, 15, 0.75);
+    border: 0.5px solid rgba(255, 107, 107, 0.4);
+    color: #ff9b9b;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -209,7 +217,22 @@
         <input type="range" id="timelineSlider" min="0" max="0" value="0" />
         <span class="time-label" id="timelineLabel">—</span>
       </div>
-      <div class="players-list" id="playersList"></div>
+      <div class="window-box" id="windowBox">
+        <div class="window-row">
+          <label>Início</label>
+          <input type="range" id="windowStartSlider" min="0" max="0" value="0" />
+          <span id="windowStartLabel">—</span>
+        </div>
+        <div class="window-row">
+          <label>Fim</label>
+          <input type="range" id="windowEndSlider" min="0" max="0" value="0" />
+          <span id="windowEndLabel">—</span>
+        </div>
+        <div class="pvp-toggle-row">
+          <input type="checkbox" id="pvpToggle" checked />
+          <label for="pvpToggle">🎯 Mostrar PvP (mira + arma + distância)</label>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -221,14 +244,18 @@
 
   const mapArea = document.getElementById("mapArea");
   const meta = document.getElementById("meta");
-  const playersList = document.getElementById("playersList");
 
   let currentMapKey = null;
   let zoomLevel = 1;
+  // Zoom+pan em espaco de PIXEL, transform-origin fixo em 0 0 —
+  // transform: translate(tx,ty) scale(z) mapeia ponto de conteudo (x,y)
+  // pra tela em (z*x+tx, z*y+ty). Zoom no cursor: acha o ponto de
+  // conteudo sob o mouse ANTES de mudar o zoom, recalcula tx/ty pra
+  // aquele mesmo ponto continuar sob o cursor DEPOIS.
   let panX = 0;
   let panY = 0;
   const MIN_ZOOM = 1;
-  const MAX_ZOOM = 6;
+  const MAX_ZOOM = 15;
 
   function clampPan(rectSize) {
     const minPan = rectSize - rectSize * zoomLevel;
@@ -243,7 +270,12 @@
     mapBox.style.transformOrigin = "0 0";
     mapBox.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
     viewport.classList.toggle("zoomed", zoomLevel > MIN_ZOOM);
-    const dotScale = 1 / Math.sqrt(zoomLevel);
+    // Bolinha encolhe conforme da zoom, pra nao tampar a area ao redor —
+    // nao neutraliza o zoom por completo (1/sqrt em vez de 1/zoom), so
+    // reduzido pela metade (pedido do dono, 2026-08-16 — MAX_ZOOM subiu
+    // pra 15, bolinha tava grande demais no zoom maximo com a formula
+    // antiga).
+    const dotScale = 0.5 / Math.sqrt(zoomLevel);
     mapBox.querySelectorAll(".dot").forEach((d) => {
       d.style.setProperty("--dot-scale", dotScale);
     });
@@ -276,6 +308,7 @@
     { passive: false }
   );
 
+  // Clicar e arrastar pra mover o mapa quando tiver zoom aplicado.
   let dragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
@@ -316,6 +349,9 @@
     if (viewport) viewport.classList.remove("dragging");
   });
 
+  // Cor estavel por jogador (hash simples do gamertag -> matiz HSL) —
+  // mesma cor sempre pro mesmo jogador entre atualizacoes, sem precisar
+  // guardar mapeamento em lugar nenhum.
   function colorForName(name) {
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
@@ -331,6 +367,11 @@
   }
 
   function ensureMapImage(mapInfo) {
+    // Troca de modo (Ao Vivo/Histórico/Upload) reescreve mapArea.innerHTML
+    // pra mostrar "carregando..." — isso destroi o #mapBox mesmo que o
+    // MAPA em si nao tenha mudado, entao o "so reconstroi se a key mudou"
+    // sozinho nao basta: precisa checar se o elemento realmente ainda
+    // existe no DOM, senao trava mudo (bug real, 2026-08-16).
     if (mapInfo.key !== currentMapKey || !document.getElementById("mapBox")) {
       currentMapKey = mapInfo.key;
       zoomLevel = 1;
@@ -344,14 +385,94 @@
     return document.getElementById("mapBox");
   }
 
-  function renderPlayers(mapInfo, players, metaSuffix) {
+  function pctPos(x, y, mapInfo) {
+    return { left: (x / mapInfo.worldSize) * 100, top: (1 - y / mapInfo.worldSize) * 100 };
+  }
+
+  // Mira semi-transparente (circulo + cruz) na vitima + linha pontilhada
+  // ate a posicao aproximada do atacante (quando achamos amostra perto o
+  // suficiente dele) + label com arma/distancia. SVG com viewBox 0..100
+  // pra usar as MESMAS coordenadas em % que os pontinhos de jogador.
+  function renderPvpOverlay(mapBox, mapInfo, pvpEvents) {
+    mapBox.querySelectorAll(".pvp-label, #pvpOverlay").forEach((el) => el.remove());
+    const pvpToggle = document.getElementById("pvpToggle");
+    if (!pvpToggle?.checked || !pvpEvents?.length) return;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("id", "pvpOverlay");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.style.position = "absolute";
+    svg.style.inset = "0";
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.pointerEvents = "none";
+
+    for (const ev of pvpEvents) {
+      const vp = pctPos(ev.victimPos.x, ev.victimPos.y, mapInfo);
+
+      if (ev.attackerPos) {
+        const ap = pctPos(ev.attackerPos.x, ev.attackerPos.y, mapInfo);
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", ap.left);
+        line.setAttribute("y1", ap.top);
+        line.setAttribute("x2", vp.left);
+        line.setAttribute("y2", vp.top);
+        line.setAttribute("stroke", "rgba(255,90,90,0.55)");
+        line.setAttribute("stroke-width", "0.3");
+        line.setAttribute("stroke-dasharray", "1.4,1.2");
+        line.setAttribute("vector-effect", "non-scaling-stroke");
+        svg.appendChild(line);
+      }
+
+      const g = document.createElementNS(svgNS, "g");
+      g.setAttribute("transform", `translate(${vp.left}, ${vp.top})`);
+      const circle = document.createElementNS(svgNS, "circle");
+      circle.setAttribute("r", "1.8");
+      circle.setAttribute("fill", "rgba(255,90,90,0.12)");
+      circle.setAttribute("stroke", "rgba(255,90,90,0.7)");
+      circle.setAttribute("stroke-width", "0.25");
+      g.appendChild(circle);
+      for (const [x1, y1, x2, y2] of [
+        [-2.6, 0, -1, 0],
+        [1, 0, 2.6, 0],
+        [0, -2.6, 0, -1],
+        [0, 1, 0, 2.6],
+      ]) {
+        const l = document.createElementNS(svgNS, "line");
+        l.setAttribute("x1", x1);
+        l.setAttribute("y1", y1);
+        l.setAttribute("x2", x2);
+        l.setAttribute("y2", y2);
+        l.setAttribute("stroke", "rgba(255,90,90,0.7)");
+        l.setAttribute("stroke-width", "0.25");
+        g.appendChild(l);
+      }
+      svg.appendChild(g);
+    }
+    mapBox.appendChild(svg);
+
+    // Labels em HTML por cima do SVG — mais facil de estilizar texto.
+    for (const ev of pvpEvents) {
+      const vp = pctPos(ev.victimPos.x, ev.victimPos.y, mapInfo);
+      const label = document.createElement("div");
+      label.className = "pvp-label";
+      label.style.left = `${vp.left}%`;
+      label.style.top = `${vp.top}%`;
+      const distTxt = ev.distance != null ? ` · ${Math.round(ev.distance)}m` : "";
+      label.textContent = `${ev.attacker} → ${ev.victim} · ${ev.weapon ?? "?"}${distTxt}`;
+      mapBox.appendChild(label);
+    }
+  }
+
+  function renderPlayers(mapInfo, players, metaSuffix, pvpEvents) {
     meta.innerHTML = `Mapa: <strong>${mapInfo.displayName}</strong> · ${players.length} jogador(es)${metaSuffix ? " · " + metaSuffix : ""}`;
 
     const mapBox = ensureMapImage(mapInfo);
     if (!mapBox) return;
 
-    mapBox.querySelectorAll(".dot").forEach((el) => el.remove());
-    playersList.innerHTML = "";
+    mapBox.querySelectorAll(".dot, .pvp-label, #pvpOverlay").forEach((el) => el.remove());
 
     if (!players.length) {
       const empty = document.createElement("div");
@@ -367,27 +488,24 @@
     }
 
     for (const p of players) {
-      const leftPct = (p.x / mapInfo.worldSize) * 100;
-      const topPct = (1 - p.y / mapInfo.worldSize) * 100;
+      const pos = pctPos(p.x, p.y, mapInfo);
       const color = colorForName(p.gamertag);
       const dot = document.createElement("div");
       dot.className = "dot";
-      dot.style.left = `${leftPct}%`;
-      dot.style.top = `${topPct}%`;
+      dot.style.left = `${pos.left}%`;
+      dot.style.top = `${pos.top}%`;
       dot.style.setProperty("--dot-color", color);
       dot.style.setProperty("--dot-glow", color.replace("55%)", "55%, 0.3)").replace("hsl(", "hsla("));
-      dot.dataset.label = `${p.gamertag}${p.xp != null ? ` · ${p.xp} XP` : ""}`;
+      dot.dataset.label = p.gamertag;
       mapBox.appendChild(dot);
-
-      const tag = document.createElement("span");
-      tag.style.color = color;
-      tag.textContent = `● ${p.gamertag}`;
-      playersList.appendChild(tag);
     }
+
+    if (pvpEvents?.length) renderPvpOverlay(mapBox, mapInfo, pvpEvents);
 
     applyZoom();
   }
 
+  // ---------- Modo AO VIVO ----------
   let currentMapInfo = null;
 
   async function loadLive() {
@@ -410,54 +528,93 @@
     if (currentModeName === "live") loadLive();
   }, REFRESH_MS);
 
+  // ---------- Frames (usado por "ultimas 24h" e "upload de log") ----------
+  // Agrupa pontos soltos {gamertag,x,y,t} em "frames" — cada frame e um
+  // instante de tempo (arredondado pro bucket de 5min mais proximo, MESMA
+  // cadencia que o .ADM ja registra posicao) com a posicao mais recente
+  // conhecida de CADA jogador ate aquele momento (arrasta pra frente quem
+  // nao teve amostra nova nesse bucket especifico). STALE_MS: se a ultima
+  // amostra de alguem ja passou desse tanto de tempo (desconectou e nunca
+  // mais apareceu), some da lista em vez de ficar preso pra sempre —
+  // mesma janela de "fantasma" que o Mapa ao Vivo ja usa (15min), um
+  // pouco mais folgado aqui (20min) pra tolerar 1 amostra perdida sem
+  // sumir a toa.
   const BUCKET_MS = 5 * 60 * 1000;
+  const STALE_MS = 20 * 60 * 1000;
 
   function bucketKey(msEpoch) {
     return Math.round(msEpoch / BUCKET_MS) * BUCKET_MS;
   }
 
-  function buildFrames(points) {
-    const buckets = new Map();
+  function buildFrames(points, pvpEvents = []) {
+    const buckets = new Map(); // bucketMs -> Map(gamertag -> {x,y})
     for (const p of points) {
       const key = bucketKey(p.msEpoch);
       if (!buckets.has(key)) buckets.set(key, new Map());
       buckets.get(key).set(p.gamertag, { x: p.x, y: p.y });
     }
-    const sortedKeys = [...buckets.keys()].sort((a, b) => a - b);
-    const state = new Map();
+    const pvpByBucket = new Map();
+    for (const ev of pvpEvents) {
+      const key = bucketKey(ev.msEpoch);
+      if (!pvpByBucket.has(key)) pvpByBucket.set(key, []);
+      pvpByBucket.get(key).push(ev);
+    }
+    const allKeys = new Set([...buckets.keys(), ...pvpByBucket.keys()]);
+    const sortedKeys = [...allKeys].sort((a, b) => a - b);
+    const state = new Map(); // gamertag -> {x,y,lastKey}
     const frames = [];
     for (const key of sortedKeys) {
-      for (const [name, pos] of buckets.get(key)) state.set(name, pos);
-      frames.push({
-        msEpoch: key,
-        players: [...state.entries()].map(([gamertag, pos]) => ({ gamertag, x: pos.x, y: pos.y })),
-      });
+      const bucket = buckets.get(key);
+      if (bucket) for (const [name, pos] of bucket) state.set(name, { ...pos, lastKey: key });
+      const players = [...state.entries()]
+        .filter(([, v]) => key - v.lastKey <= STALE_MS)
+        .map(([gamertag, v]) => ({ gamertag, x: v.x, y: v.y }));
+      frames.push({ msEpoch: key, players, pvp: pvpByBucket.get(key) ?? [] });
     }
     return frames;
   }
 
+  // ---------- Timeline (play/pause/slider + janela inicio/fim) ----------
   const timelineBox = document.getElementById("timelineBox");
   const timelineSlider = document.getElementById("timelineSlider");
   const timelineLabel = document.getElementById("timelineLabel");
   const playBtn = document.getElementById("playBtn");
+  const windowBox = document.getElementById("windowBox");
+  const windowStartSlider = document.getElementById("windowStartSlider");
+  const windowEndSlider = document.getElementById("windowEndSlider");
+  const windowStartLabel = document.getElementById("windowStartLabel");
+  const windowEndLabel = document.getElementById("windowEndLabel");
+  const pvpToggle = document.getElementById("pvpToggle");
 
   let currentFrames = [];
   let playTimer = null;
+  // Janela (2 pontos escolhidos na barra, tipo o iZurvive antigo) — play
+  // e o slider principal ficam PRESOS a esse intervalo em vez de sempre
+  // pegar o log inteiro desde o comeco.
+  let windowStart = 0;
+  let windowEnd = 0;
 
-  function formatFrameLabel(msEpoch, index, total) {
+  function formatTimeShort(msEpoch) {
     const d = new Date(msEpoch);
     const hh = String(d.getUTCHours()).padStart(2, "0");
     const mm = String(d.getUTCMinutes()).padStart(2, "0");
-    return `${hh}:${mm} (${index + 1}/${total})`;
+    return `${hh}:${mm}`;
+  }
+
+  function formatFrameLabel(msEpoch, index, total) {
+    return `${formatTimeShort(msEpoch)} (${index + 1}/${total})`;
   }
 
   function showFrame(index) {
     if (!currentFrames.length) return;
-    const clamped = Math.max(0, Math.min(currentFrames.length - 1, index));
+    const clamped = Math.max(windowStart, Math.min(windowEnd, index));
     timelineSlider.value = String(clamped);
     const frame = currentFrames[clamped];
     timelineLabel.textContent = formatFrameLabel(frame.msEpoch, clamped, currentFrames.length);
-    if (currentMapInfo) renderPlayers(currentMapInfo, frame.players, "modo replay");
+    // Nunca falha em silencio — se currentMapInfo nao carregou por algum
+    // motivo, mostra erro em vez de deixar a tela travada sem explicacao
+    // nenhuma (mesma licao do bug do ensureMapImage acima).
+    if (currentMapInfo) renderPlayers(currentMapInfo, frame.players, "modo replay", frame.pvp);
     else mapArea.innerHTML = '<div class="error">Não consegui carregar a info do mapa — tenta recarregar a página.</div>';
   }
 
@@ -465,13 +622,48 @@
     currentFrames = frames;
     pausePlayback();
     timelineBox.classList.toggle("visible", frames.length > 0);
-    timelineSlider.max = String(Math.max(0, frames.length - 1));
+    windowBox.classList.toggle("visible", frames.length > 0);
+    const maxIdx = Math.max(0, frames.length - 1);
+    timelineSlider.max = String(maxIdx);
+    windowStartSlider.max = String(maxIdx);
+    windowEndSlider.max = String(maxIdx);
+    windowStart = 0;
+    windowEnd = maxIdx;
+    windowStartSlider.value = "0";
+    windowEndSlider.value = String(maxIdx);
     if (!frames.length) {
       mapArea.innerHTML = '<div class="error">Nenhuma posição encontrada nessa janela — tenta outro período ou arquivo.</div>';
       return;
     }
-    showFrame(frames.length - 1);
+    updateWindowLabels();
+    showFrame(maxIdx); // comeca no frame mais recente
   }
+
+  function updateWindowLabels() {
+    if (!currentFrames.length) return;
+    windowStartLabel.textContent = formatTimeShort(currentFrames[windowStart].msEpoch);
+    windowEndLabel.textContent = formatTimeShort(currentFrames[windowEnd].msEpoch);
+  }
+
+  windowStartSlider.addEventListener("input", () => {
+    let v = Number(windowStartSlider.value);
+    if (v > windowEnd) v = windowEnd;
+    windowStart = v;
+    windowStartSlider.value = String(v);
+    updateWindowLabels();
+    pausePlayback();
+    showFrame(windowStart);
+  });
+  windowEndSlider.addEventListener("input", () => {
+    let v = Number(windowEndSlider.value);
+    if (v < windowStart) v = windowStart;
+    windowEnd = v;
+    windowEndSlider.value = String(v);
+    updateWindowLabels();
+    pausePlayback();
+    showFrame(windowEnd);
+  });
+  pvpToggle.addEventListener("change", () => showFrame(Number(timelineSlider.value)));
 
   function pausePlayback() {
     if (playTimer) clearInterval(playTimer);
@@ -485,9 +677,11 @@
       return;
     }
     playBtn.textContent = "⏸️";
+    // Se ja estiver no fim da janela, reinicia do inicio dela.
+    if (Number(timelineSlider.value) >= windowEnd) showFrame(windowStart);
     playTimer = setInterval(() => {
       const next = Number(timelineSlider.value) + 1;
-      if (next >= currentFrames.length) {
+      if (next > windowEnd) {
         pausePlayback();
         return;
       }
@@ -500,6 +694,7 @@
     showFrame(Number(timelineSlider.value));
   });
 
+  // ---------- Modo ULTIMAS 24H ----------
   async function loadHistory() {
     mapArea.innerHTML = '<div class="empty">carregando histórico…</div>';
     try {
@@ -508,28 +703,65 @@
       if (!res.ok) throw new Error(data.error || "Falha ao carregar histórico");
       currentMapInfo = data.map;
       const points = data.points.map((p) => ({ gamertag: p.gamertag, x: p.x, y: p.y, msEpoch: new Date(p.t).getTime() }));
-      setFrames(buildFrames(points));
+      const pvpEvents = (data.pvp ?? [])
+        .filter((ev) => ev.victimPos)
+        .map((ev) => ({ ...ev, msEpoch: new Date(ev.t).getTime() }));
+      setFrames(buildFrames(points, pvpEvents));
     } catch (err) {
       mapArea.innerHTML = `<div class="error">${err.message}</div>`;
     }
   }
 
+  // ---------- Modo UPLOAD DE LOG ----------
+  // Mesmo padrao de linha que o parser do bot ja reconhece (src/parser/admLogParser.js)
+  // — so a posicao periodica, com ou sem sufixo de evento depois do pos=<...>.
   const ADM_LINE_RE = /^(\d{2}):(\d{2}):(\d{2}) \| Player "([^"]+)" \(id=[0-9A-Fa-f]+ pos=<([-\d.]+), ([-\d.]+), ([-\d.]+)>\)/;
+
+  // Kill PvP FATAL, com posicao dos 2 (vitima E atacante) na MESMA linha
+  // — diferente do historico (banco so tem posicao da vitima, atacante e
+  // aproximado), aqui e exato, os 2 vem juntos no arquivo. Weapon+distancia
+  // opcional (melee corpo-a-corpo nao tem "from X meters", mesmo caso ja
+  // documentado no parser do bot — ver WEAPON_DISTANCE_RE/MELEE_WEAPON_RE
+  // em src/parser/admLogParser.js).
+  const KILL_LINE_RE =
+    /^(\d{2}):(\d{2}):(\d{2}) \| Player "([^"]+)" \(id=[\w-]+ pos=<([-\d.]+), ([-\d.]+), [-\d.]+>\) killed by Player "([^"]+)" \(id=[\w-]+ pos=<([-\d.]+), ([-\d.]+), [-\d.]+>\)(?: with ([^"]+?) from ([\d.]+) meters| with ([^"]+))?/;
+
+  function secondsOfLine(hh, mm, ss, state) {
+    let seconds = Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
+    if (state.lastSeconds !== -1 && seconds < state.lastSeconds - 60) state.dayOffset += 86400;
+    state.lastSeconds = seconds;
+    return seconds + state.dayOffset;
+  }
 
   function parseAdmFile(text) {
     const points = [];
-    let dayOffset = 0;
-    let lastSeconds = -1;
+    const pvpEvents = [];
+    const posState = { dayOffset: 0, lastSeconds: -1 };
+    const killState = { dayOffset: 0, lastSeconds: -1 };
     for (const line of text.split("\n")) {
-      const m = ADM_LINE_RE.exec(line);
-      if (!m) continue;
-      const [, hh, mm, ss, gamertag, x, y] = m;
-      let seconds = Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
-      if (lastSeconds !== -1 && seconds < lastSeconds - 60) dayOffset += 86400;
-      lastSeconds = seconds;
-      points.push({ gamertag, x: Number(x), y: Number(y), msEpoch: (seconds + dayOffset) * 1000 });
+      const posMatch = ADM_LINE_RE.exec(line);
+      if (posMatch) {
+        const [, hh, mm, ss, gamertag, x, y] = posMatch;
+        const totalSeconds = secondsOfLine(hh, mm, ss, posState);
+        points.push({ gamertag, x: Number(x), y: Number(y), msEpoch: totalSeconds * 1000 });
+        continue;
+      }
+      const killMatch = KILL_LINE_RE.exec(line);
+      if (killMatch) {
+        const [, hh, mm, ss, victim, vx, vy, attacker, ax, ay, weaponDist, distance, weaponMelee] = killMatch;
+        const totalSeconds = secondsOfLine(hh, mm, ss, killState);
+        pvpEvents.push({
+          victim,
+          attacker,
+          weapon: weaponDist ?? weaponMelee ?? null,
+          distance: distance != null ? Number(distance) : null,
+          victimPos: { x: Number(vx), y: Number(vy) },
+          attackerPos: { x: Number(ax), y: Number(ay) },
+          msEpoch: totalSeconds * 1000,
+        });
+      }
     }
-    return points;
+    return { points, pvpEvents };
   }
 
   document.getElementById("uploadInput").addEventListener("change", async (e) => {
@@ -538,18 +770,21 @@
     mapArea.innerHTML = '<div class="empty">lendo arquivo…</div>';
     try {
       const text = await file.text();
-      const points = parseAdmFile(text);
+      const { points, pvpEvents } = parseAdmFile(text);
       if (!currentMapInfo) {
+        // upload pode acontecer antes de qualquer fetch — pega o mapa
+        // atual do servidor mesmo assim (so a info do mapa, sem posicao).
         const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&mode=live`);
         const data = await res.json();
         if (res.ok) currentMapInfo = data.map;
       }
-      setFrames(buildFrames(points));
+      setFrames(buildFrames(points, pvpEvents));
     } catch (err) {
       mapArea.innerHTML = `<div class="error">Falha ao ler o arquivo: ${err.message}</div>`;
     }
   });
 
+  // ---------- Troca de modo ----------
   let currentModeName = "live";
   const uploadBox = document.getElementById("uploadBox");
 
@@ -561,6 +796,7 @@
       pausePlayback();
       uploadBox.classList.toggle("visible", currentModeName === "upload");
       timelineBox.classList.toggle("visible", currentModeName !== "live" && currentFrames.length > 0);
+      windowBox.classList.toggle("visible", currentModeName !== "live" && currentFrames.length > 0);
 
       if (currentModeName === "live") {
         currentFrames = [];
@@ -571,6 +807,7 @@
         mapArea.innerHTML = '<div class="empty">Escolhe um arquivo .ADM acima pra começar.</div>';
         currentFrames = [];
         timelineBox.classList.remove("visible");
+        windowBox.classList.remove("visible");
       }
     });
   });
