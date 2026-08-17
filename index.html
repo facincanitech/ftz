@@ -151,6 +151,15 @@
   .account-row:last-child { border-bottom: none; }
   .account-row .label { color: var(--muted); }
   .account-row .value { font-weight: 600; text-align: right; }
+  .creator-list { display: flex; flex-direction: column; gap: 16px; max-width: 640px; margin: 0 auto; }
+  .creator-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; font-size: 13px;
+  }
+  .creator-card-row { padding: 3px 0; color: var(--text); word-break: break-all; }
+  .creator-card-row code { color: var(--muted); font-size: 12px; }
+  .creator-card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .creator-card-actions button { width: auto; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
   .status-pill {
     display: inline-block;
     padding: 4px 10px;
@@ -252,6 +261,7 @@
     <div class="settings-menu">
       <a href="termos-de-servico/">📄 Termos de Serviço</a>
       <a href="politica-de-privacidade/">🔒 Política de Privacidade</a>
+      <a href="#" id="creator-login-link">🛡️ Login de Criador</a>
     </div>
   </div>
 
@@ -470,6 +480,16 @@
       </div>
     </div>
 
+    <!-- TELA 5: painel de criador -->
+    <div id="view-creator" style="display: none;">
+      <header>
+        <h2 class="screen-title">Painel de Criador</h2>
+        <p class="screen-sub">Todos os servidores/assinaturas cadastrados.</p>
+      </header>
+      <div id="creator-error" class="error-msg" style="text-align: center; max-width: 480px; margin: 0 auto 16px;"></div>
+      <div id="creator-list" class="creator-list"></div>
+    </div>
+
     <footer>
       Projeto independente, não afiliado à Bohemia Interactive ou à Nitrado. ·
       <a href="termos-de-servico/">Termos de Serviço</a> ·
@@ -508,6 +528,7 @@
       subscribe: document.getElementById("view-subscribe"),
       confirm: document.getElementById("view-confirm"),
       account: document.getElementById("view-account"),
+      creator: document.getElementById("view-creator"),
     };
     function showView(name) {
       for (const key in views) views[key].style.display = key === name ? "" : "none";
@@ -530,6 +551,25 @@
     });
 
     document.getElementById("discord-login-btn").addEventListener("click", () => {
+      const url = new URL("https://discord.com/oauth2/authorize");
+      url.searchParams.set("client_id", DISCORD_CLIENT_ID);
+      url.searchParams.set("redirect_uri", REDIRECT_URI);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("scope", "identify");
+      window.location.href = url.toString();
+    });
+
+    // Login de Criador — MESMO fluxo de OAuth de sempre (o Discord não
+    // distingue "tipo" de login), só marca uma intenção no
+    // sessionStorage ANTES de sair pro Discord — quando voltar (auth/
+    // callback/ redireciona de volta pra cá), o roteador de baixo
+    // detecta essa flag e chama creator-list-subscriptions em vez do
+    // painel de conta normal. Quem decide se a conta É a do criador de
+    // verdade é sempre o SERVIDOR (Edge Function, ver _shared/creator.ts)
+    // — essa flag no navegador só direciona qual tela tentar mostrar.
+    document.getElementById("creator-login-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      sessionStorage.setItem("ftz_creator_intent", "1");
       const url = new URL("https://discord.com/oauth2/authorize");
       url.searchParams.set("client_id", DISCORD_CLIENT_ID);
       url.searchParams.set("redirect_uri", REDIRECT_URI);
@@ -1044,7 +1084,108 @@
       renderAccount(data.subscription);
     }
 
-    bootAccount();
+    // ---------- Tela 5: painel de criador ----------
+    function fmtBool(v) {
+      return v ? "Sim" : "Não";
+    }
+
+    async function creatorFetch(path, options) {
+      const session = getSession();
+      const sep = path.includes("?") ? "&" : "?";
+      const url = options && options.method === "POST" ? `${FUNCTIONS_URL}/${path}` : `${FUNCTIONS_URL}/${path}${sep}token=${encodeURIComponent(session.token)}`;
+      const opts = options || {};
+      if (opts.method === "POST") {
+        opts.headers = { "Content-Type": "application/json" };
+        opts.body = JSON.stringify({ token: session.token, ...(opts.bodyExtra || {}) });
+      }
+      const res = await fetch(url, opts);
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Falha na requisição.");
+      return data;
+    }
+
+    function renderCreatorList(subs) {
+      const wrap = document.getElementById("creator-list");
+      if (!subs.length) {
+        wrap.innerHTML = '<p style="text-align:center;color:var(--muted)">Nenhuma assinatura cadastrada ainda.</p>';
+        return;
+      }
+      wrap.innerHTML = subs
+        .map((s) => {
+          const expires = s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("pt-BR") : "—";
+          const created = s.createdAt ? new Date(s.createdAt).toLocaleDateString("pt-BR") : "—";
+          const pagamento = s.card ? `Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"}` : s.planType === "recurring" ? "Cartão (sem dado salvo)" : "Pix";
+          return `
+            <div class="creator-card" data-id="${s.id}">
+              <div class="creator-card-row"><b>#${s.id}</b> — ${s.serverName || "(sem nome)"} ${s.isPartner ? "🤝 PARCEIRO" : ""}</div>
+              <div class="creator-card-row">Status: ${s.status} · Plano: ${s.planType}</div>
+              <div class="creator-card-row">Dono: ${s.customerName || "—"} · @${s.discordUsername || "—"} (${s.discordUserId || "—"})</div>
+              <div class="creator-card-row">Email: ${s.email || "—"}</div>
+              <div class="creator-card-row">Servidor Nitrado — ID: <code>${s.nitradoServiceId || "—"}</code></div>
+              <div class="creator-card-row">Token Nitrado: <code>${s.nitradoToken || "—"}</code></div>
+              <div class="creator-card-row">Guild Discord vinculado: <code>${s.guildId || "—"}</code></div>
+              <div class="creator-card-row">Assinado: ${created} · Vence: ${expires}</div>
+              <div class="creator-card-row">Pagamento: ${pagamento}</div>
+              <div class="creator-card-actions">
+                <button type="button" class="btn btn-ghost creator-toggle-partner" data-id="${s.id}" data-partner="${s.isPartner ? "0" : "1"}">
+                  ${s.isPartner ? "Remover parceria" : "🤝 Marcar como parceiro"}
+                </button>
+                ${s.card ? `<button type="button" class="btn btn-danger creator-cancel-card" data-id="${s.id}">🗑️ Cancelar cobrança recorrente</button>` : ""}
+              </div>
+            </div>`;
+        })
+        .join("");
+
+      wrap.querySelectorAll(".creator-toggle-partner").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          try {
+            await creatorFetch("creator-toggle-partner", {
+              method: "POST",
+              bodyExtra: { subscriptionId: Number(btn.dataset.id), isPartner: btn.dataset.partner === "1" },
+            });
+            await bootCreator();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
+        });
+      });
+      wrap.querySelectorAll(".creator-cancel-card").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Cancelar a cobrança recorrente desse cliente? Não pode desfazer.")) return;
+          btn.disabled = true;
+          try {
+            await creatorFetch("creator-cancel-card", { method: "POST", bodyExtra: { subscriptionId: Number(btn.dataset.id) } });
+            await bootCreator();
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    async function bootCreator() {
+      const errorEl = document.getElementById("creator-error");
+      errorEl.textContent = "";
+      showView("creator");
+      try {
+        const data = await creatorFetch("creator-list-subscriptions");
+        renderCreatorList(data.subscriptions);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        document.getElementById("creator-list").innerHTML = "";
+      }
+    }
+
+    // ---------- Roteador de boot ----------
+    if (sessionStorage.getItem("ftz_creator_intent") && getSession()) {
+      sessionStorage.removeItem("ftz_creator_intent");
+      bootCreator();
+    } else {
+      bootAccount();
+    }
   </script>
 </body>
 </html>
