@@ -1334,6 +1334,7 @@
             <div class="creator-row"><span class="c-label">Dono</span><span class="c-value">${s.customerName || "—"} · @${s.discordUsername || "—"}</span></div>
             <div class="creator-row"><span class="c-label">Discord ID</span><span class="c-value mono">${s.discordUserId || "—"}</span></div>
             <div class="creator-row"><span class="c-label">Email</span><span class="c-value link">${s.email || "—"}</span></div>
+            <div class="creator-row"><span class="c-label">Forma de pagamento</span><span class="c-value">${s.card ? `💳 Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"}` : s.planType === "recurring" ? "💳 Cartão (sem dado salvo)" : "📱 Pix"}</span></div>
             <div class="creator-row"><span class="c-label">Servidor Nitrado</span><span class="c-value mono">${s.nitradoServiceId || "—"}</span></div>
             <div class="creator-token-row">
               <span class="c-label">Token Nitrado</span>
