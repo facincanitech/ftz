@@ -163,6 +163,41 @@
     --c-danger: #ff6b6b; --c-danger-soft: rgba(255,107,107,0.12);
     --c-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   }
+  .creator-search {
+    display: block; width: 100%; max-width: 640px; margin: 0 auto 18px;
+    padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  .creator-table { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
+  .creator-table-head, .creator-table-row {
+    display: grid; grid-template-columns: 1fr 110px 110px; gap: 10px; align-items: center;
+    padding: 12px 16px; border-radius: 10px;
+  }
+  .creator-table-head { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 4px; }
+  .creator-table-row {
+    background: var(--card); border: 1px solid var(--border); cursor: pointer;
+    font-size: 13.5px; transition: border-color .15s ease, transform .15s ease;
+  }
+  .creator-table-row:hover { border-color: var(--accent); transform: translateX(2px); }
+  .creator-table-row .ct-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .creator-table-row .ct-date { color: var(--muted); text-align: right; font-size: 12.5px; }
+  .creator-table-row .ct-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: #4fbf72; }
+  .creator-table-row .ct-dot.pending { background: #e0b23c; }
+  .creator-table-row .ct-dot.expired { background: #ff6b6b; }
+
+  .creator-modal-overlay {
+    position: fixed; inset: 0; background: rgba(5,6,8,0.72); backdrop-filter: blur(3px);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 20px; overflow-y: auto; z-index: 50;
+  }
+  .creator-modal { position: relative; width: 100%; max-width: 480px; }
+  .creator-modal-close {
+    position: absolute; top: -14px; right: -14px; z-index: 1;
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .creator-modal-close:hover { border-color: var(--accent); color: var(--accent); }
   .creator-list { display: flex; flex-direction: column; gap: 20px; max-width: 640px; margin: 0 auto; }
   .creator-card {
     background: linear-gradient(180deg, var(--c-panel-2) 0%, var(--c-panel) 100%);
@@ -569,7 +604,15 @@
         <p class="screen-sub">Todos os servidores/assinaturas cadastrados.</p>
       </header>
       <div id="creator-error" class="error-msg" style="text-align: center; max-width: 480px; margin: 0 auto 16px;"></div>
-      <div id="creator-list" class="creator-list"></div>
+      <input type="text" id="creator-search" class="creator-search" placeholder="🔎 Buscar por nome do servidor, dono ou @Discord..." />
+      <div id="creator-table" class="creator-table"></div>
+    </div>
+
+    <div id="creator-modal-overlay" class="creator-modal-overlay" style="display: none;">
+      <div class="creator-modal">
+        <button type="button" class="creator-modal-close" id="creator-modal-close-btn">✕</button>
+        <div id="creator-modal-body"></div>
+      </div>
     </div>
 
     <footer>
@@ -1199,87 +1242,116 @@
       });
     }
 
-    function renderCreatorList(subs) {
-      const wrap = document.getElementById("creator-list");
+    let currentCreatorSubs = [];
+
+    // Linha compacta (nome/assinado/vencimento) — clica pra abrir o
+    // card completo no modal. Pedido do dono (2026-08-17): lista de
+    // cards empilhados ficava grande demais com muito servidor
+    // cadastrado, melhor uma tabela de busca primeiro.
+    function renderCreatorTable(subs) {
+      const wrap = document.getElementById("creator-table");
       if (!subs.length) {
-        wrap.innerHTML = '<p style="text-align:center;color:var(--muted)">Nenhuma assinatura cadastrada ainda.</p>';
+        wrap.innerHTML = '<p style="text-align:center;color:var(--muted)">Nenhum resultado.</p>';
         return;
       }
-      wrap.innerHTML = subs
+      const rows = subs
         .map((s) => {
           const expires = s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("pt-BR") : "—";
           const created = s.createdAt ? new Date(s.createdAt).toLocaleDateString("pt-BR") : "—";
-          const isRecurring = Boolean(s.card) || s.planType === "recurring";
-          const planLabel = isRecurring ? "Recorrente" : "Pagamento único";
-
           const now = Date.now();
           const expiresMs = s.expiresAt ? new Date(s.expiresAt).getTime() : null;
           const isActive = s.status === "active" && (s.isPartner || (expiresMs && expiresMs > now));
-          const statusBadge = s.isPartner
-            ? '<span class="creator-badge active">Parceiro</span>'
-            : isActive
-            ? '<span class="creator-badge active">Ativo</span>'
-            : s.status === "pending"
-            ? '<span class="creator-badge pending">Pendente</span>'
-            : '<span class="creator-badge expired">Expirado</span>';
-
-          let renewBlock;
-          if (s.isPartner) {
-            renewBlock = `
-              <div class="creator-renew-block">
-                <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Sem vencimento (parceiro)</span></div>
-              </div>`;
-          } else {
-            const createdMs = s.createdAt ? new Date(s.createdAt).getTime() : null;
-            let pct = 0;
-            if (createdMs && expiresMs && expiresMs > createdMs) {
-              pct = Math.min(100, Math.max(0, ((now - createdMs) / (expiresMs - createdMs)) * 100));
-            }
-            renewBlock = `
-              <div class="creator-renew-block">
-                <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Vence ${expires}</span></div>
-                <div class="creator-bar"><div class="creator-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
-              </div>`;
-          }
-
+          const dotClass = s.isPartner || isActive ? "" : s.status === "pending" ? "pending" : "expired";
           return `
-            <div class="creator-card" data-id="${s.id}">
-              <div class="creator-card-head">
-                <div>
-                  <p class="c-id">#${s.id}</p>
-                  <h3>${s.serverName || "(sem nome)"}</h3>
-                </div>
-                <div class="creator-badges">
-                  ${statusBadge}
-                  <span class="creator-badge plan">${planLabel}</span>
-                </div>
-              </div>
-              <div class="creator-card-body">
-                <div class="creator-row"><span class="c-label">Dono</span><span class="c-value">${s.customerName || "—"} · @${s.discordUsername || "—"}</span></div>
-                <div class="creator-row"><span class="c-label">Discord ID</span><span class="c-value mono">${s.discordUserId || "—"}</span></div>
-                <div class="creator-row"><span class="c-label">Email</span><span class="c-value link">${s.email || "—"}</span></div>
-                <div class="creator-row"><span class="c-label">Servidor Nitrado</span><span class="c-value mono">${s.nitradoServiceId || "—"}</span></div>
-                <div class="creator-token-row">
-                  <span class="c-label">Token Nitrado</span>
-                  <div class="creator-token-box">
-                    <code>${s.nitradoToken || "—"}</code>
-                    <button type="button" class="creator-copy-btn" onclick="copyCreatorToken(this)">Copiar</button>
-                  </div>
-                </div>
-                <div class="creator-row"><span class="c-label">Guild vinculada</span><span class="c-value mono">${s.guildId || "—"}</span></div>
-                ${renewBlock}
-              </div>
-              <div class="creator-card-foot">
-                <button type="button" class="creator-foot-btn creator-toggle-partner" data-id="${s.id}" data-partner="${s.isPartner ? "0" : "1"}">
-                  ${s.isPartner ? "★ Remover parceria" : "☆ Marcar como parceiro"}
-                </button>
-                ${s.card ? `<button type="button" class="creator-foot-btn danger creator-cancel-card" data-id="${s.id}">Cancelar cobrança recorrente (Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"})</button>` : ""}
-              </div>
+            <div class="creator-table-row" data-id="${s.id}">
+              <span class="ct-name"><span class="ct-dot ${dotClass}"></span>${s.serverName || "(sem nome) #" + s.id}${s.isPartner ? " 🤝" : ""}</span>
+              <span class="ct-date">${created}</span>
+              <span class="ct-date">${s.isPartner ? "—" : expires}</span>
             </div>`;
         })
         .join("");
+      wrap.innerHTML =
+        `<div class="creator-table-head"><span>Nome</span><span style="text-align:right">Assinado</span><span style="text-align:right">Vencimento</span></div>` +
+        rows;
+      wrap.querySelectorAll(".creator-table-row").forEach((row) => {
+        row.addEventListener("click", () => openCreatorModal(Number(row.dataset.id)));
+      });
+    }
 
-      wrap.querySelectorAll(".creator-toggle-partner").forEach((btn) => {
+    function creatorCardHtml(s) {
+      const expires = s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("pt-BR") : "—";
+      const created = s.createdAt ? new Date(s.createdAt).toLocaleDateString("pt-BR") : "—";
+      const isRecurring = Boolean(s.card) || s.planType === "recurring";
+      const planLabel = isRecurring ? "Recorrente" : "Pagamento único";
+
+      const now = Date.now();
+      const expiresMs = s.expiresAt ? new Date(s.expiresAt).getTime() : null;
+      const isActive = s.status === "active" && (s.isPartner || (expiresMs && expiresMs > now));
+      const statusBadge = s.isPartner
+        ? '<span class="creator-badge active">Parceiro</span>'
+        : isActive
+        ? '<span class="creator-badge active">Ativo</span>'
+        : s.status === "pending"
+        ? '<span class="creator-badge pending">Pendente</span>'
+        : '<span class="creator-badge expired">Expirado</span>';
+
+      let renewBlock;
+      if (s.isPartner) {
+        renewBlock = `
+          <div class="creator-renew-block">
+            <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Sem vencimento (parceiro)</span></div>
+          </div>`;
+      } else {
+        const createdMs = s.createdAt ? new Date(s.createdAt).getTime() : null;
+        let pct = 0;
+        if (createdMs && expiresMs && expiresMs > createdMs) {
+          pct = Math.min(100, Math.max(0, ((now - createdMs) / (expiresMs - createdMs)) * 100));
+        }
+        renewBlock = `
+          <div class="creator-renew-block">
+            <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Vence ${expires}</span></div>
+            <div class="creator-bar"><div class="creator-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
+          </div>`;
+      }
+
+      return `
+        <div class="creator-card" data-id="${s.id}">
+          <div class="creator-card-head">
+            <div>
+              <p class="c-id">#${s.id}</p>
+              <h3>${s.serverName || "(sem nome)"}</h3>
+            </div>
+            <div class="creator-badges">
+              ${statusBadge}
+              <span class="creator-badge plan">${planLabel}</span>
+            </div>
+          </div>
+          <div class="creator-card-body">
+            <div class="creator-row"><span class="c-label">Dono</span><span class="c-value">${s.customerName || "—"} · @${s.discordUsername || "—"}</span></div>
+            <div class="creator-row"><span class="c-label">Discord ID</span><span class="c-value mono">${s.discordUserId || "—"}</span></div>
+            <div class="creator-row"><span class="c-label">Email</span><span class="c-value link">${s.email || "—"}</span></div>
+            <div class="creator-row"><span class="c-label">Servidor Nitrado</span><span class="c-value mono">${s.nitradoServiceId || "—"}</span></div>
+            <div class="creator-token-row">
+              <span class="c-label">Token Nitrado</span>
+              <div class="creator-token-box">
+                <code>${s.nitradoToken || "—"}</code>
+                <button type="button" class="creator-copy-btn" onclick="copyCreatorToken(this)">Copiar</button>
+              </div>
+            </div>
+            <div class="creator-row"><span class="c-label">Guild vinculada</span><span class="c-value mono">${s.guildId || "—"}</span></div>
+            ${renewBlock}
+          </div>
+          <div class="creator-card-foot">
+            <button type="button" class="creator-foot-btn creator-toggle-partner" data-id="${s.id}" data-partner="${s.isPartner ? "0" : "1"}">
+              ${s.isPartner ? "★ Remover parceria" : "☆ Marcar como parceiro"}
+            </button>
+            ${s.card ? `<button type="button" class="creator-foot-btn danger creator-cancel-card" data-id="${s.id}">Cancelar cobrança recorrente (Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"})</button>` : ""}
+          </div>
+        </div>`;
+    }
+
+    function wireCreatorCardActions(container) {
+      container.querySelectorAll(".creator-toggle-partner").forEach((btn) => {
         btn.addEventListener("click", async () => {
           btn.disabled = true;
           try {
@@ -1288,19 +1360,21 @@
               bodyExtra: { subscriptionId: Number(btn.dataset.id), isPartner: btn.dataset.partner === "1" },
             });
             await bootCreator();
+            openCreatorModal(Number(btn.dataset.id));
           } catch (err) {
             alert(err.message);
             btn.disabled = false;
           }
         });
       });
-      wrap.querySelectorAll(".creator-cancel-card").forEach((btn) => {
+      container.querySelectorAll(".creator-cancel-card").forEach((btn) => {
         btn.addEventListener("click", async () => {
           if (!confirm("Cancelar a cobrança recorrente desse cliente? Não pode desfazer.")) return;
           btn.disabled = true;
           try {
             await creatorFetch("creator-cancel-card", { method: "POST", bodyExtra: { subscriptionId: Number(btn.dataset.id) } });
             await bootCreator();
+            openCreatorModal(Number(btn.dataset.id));
           } catch (err) {
             alert(err.message);
             btn.disabled = false;
@@ -1309,16 +1383,48 @@
       });
     }
 
+    function openCreatorModal(id) {
+      const sub = currentCreatorSubs.find((s) => s.id === id);
+      if (!sub) return;
+      const body = document.getElementById("creator-modal-body");
+      body.innerHTML = creatorCardHtml(sub);
+      wireCreatorCardActions(body);
+      document.getElementById("creator-modal-overlay").style.display = "flex";
+    }
+
+    function closeCreatorModal() {
+      document.getElementById("creator-modal-overlay").style.display = "none";
+    }
+
+    document.getElementById("creator-modal-close-btn").addEventListener("click", closeCreatorModal);
+    document.getElementById("creator-modal-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "creator-modal-overlay") closeCreatorModal();
+    });
+
+    document.getElementById("creator-search").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) {
+        renderCreatorTable(currentCreatorSubs);
+        return;
+      }
+      const filtered = currentCreatorSubs.filter((s) =>
+        [s.serverName, s.customerName, s.discordUsername, s.email].some((f) => (f || "").toLowerCase().includes(q))
+      );
+      renderCreatorTable(filtered);
+    });
+
     async function bootCreator() {
       const errorEl = document.getElementById("creator-error");
       errorEl.textContent = "";
       showView("creator");
       try {
         const data = await creatorFetch("creator-list-subscriptions");
-        renderCreatorList(data.subscriptions);
+        currentCreatorSubs = data.subscriptions;
+        document.getElementById("creator-search").value = "";
+        renderCreatorTable(currentCreatorSubs);
       } catch (err) {
         errorEl.textContent = err.message;
-        document.getElementById("creator-list").innerHTML = "";
+        document.getElementById("creator-table").innerHTML = "";
       }
     }
 
