@@ -151,15 +151,97 @@
   .account-row:last-child { border-bottom: none; }
   .account-row .label { color: var(--muted); }
   .account-row .value { font-weight: 600; text-align: right; }
-  .creator-list { display: flex; flex-direction: column; gap: 16px; max-width: 640px; margin: 0 auto; }
-  .creator-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    padding: 18px 20px; font-size: 13px;
+  /* Painel de Criador — variáveis PRÓPRIAS, escopadas em #view-creator
+     de propósito (não usa --bg/--card/--accent do resto do site,
+     evita colidir com .card/.badge/.row que já existem noutras telas). */
+  #view-creator {
+    --c-panel: #12161c; --c-panel-2: #171c23; --c-border: #232a33; --c-border-soft: #1b2129;
+    --c-text: #e7ebf0; --c-text-dim: #8b96a3; --c-text-faint: #5b6773;
+    --c-accent: #d68a3a; --c-accent-soft: rgba(214,138,58,0.12);
+    --c-ok: #4fbf72; --c-ok-soft: rgba(79,191,114,0.12);
+    --c-warn: #e0b23c; --c-warn-soft: rgba(224,178,60,0.12);
+    --c-danger: #ff6b6b; --c-danger-soft: rgba(255,107,107,0.12);
+    --c-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   }
-  .creator-card-row { padding: 3px 0; color: var(--text); word-break: break-all; }
-  .creator-card-row code { color: var(--muted); font-size: 12px; }
-  .creator-card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .creator-card-actions button { width: auto; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+  .creator-list { display: flex; flex-direction: column; gap: 20px; max-width: 640px; margin: 0 auto; }
+  .creator-card {
+    background: linear-gradient(180deg, var(--c-panel-2) 0%, var(--c-panel) 100%);
+    border: 1px solid var(--c-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
+    color: var(--c-text);
+    font-size: 13px;
+  }
+  .creator-card-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--c-border-soft);
+  }
+  .creator-card-head .c-id { font-family: var(--c-mono); font-size: 12px; color: var(--c-text-faint); margin: 0 0 4px; }
+  .creator-card-head h3 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; color: var(--c-text); }
+  .creator-badges { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .creator-badge {
+    font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .creator-badge.active { background: var(--c-ok-soft); color: var(--c-ok); }
+  .creator-badge.active::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-ok); margin-right: 6px; vertical-align: 1px;
+  }
+  .creator-badge.pending { background: var(--c-warn-soft); color: var(--c-warn); }
+  .creator-badge.expired { background: var(--c-danger-soft); color: var(--c-danger); }
+  .creator-badge.plan { background: var(--c-accent-soft); color: var(--c-accent); }
+  .creator-badge.partner { background: var(--c-accent-soft); color: var(--c-accent); }
+
+  .creator-card-body { padding: 4px 20px 18px; }
+  .creator-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--c-border-soft);
+  }
+  .creator-row:last-child { border-bottom: none; }
+  .creator-row .c-label { font-size: 12.5px; color: var(--c-text-dim); flex-shrink: 0; }
+  .creator-row .c-value { font-size: 13px; text-align: right; overflow: hidden; text-overflow: ellipsis; color: var(--c-text); }
+  .creator-row .c-value.mono { font-family: var(--c-mono); font-size: 12.5px; }
+  .creator-row .c-value.link { color: var(--c-accent); text-decoration: none; }
+
+  .creator-token-row { padding: 11px 0; border-bottom: 1px solid var(--c-border-soft); }
+  .creator-token-row .c-label { font-size: 12.5px; color: var(--c-text-dim); margin-bottom: 8px; display: block; }
+  .creator-token-box {
+    display: flex; align-items: center; gap: 10px;
+    background: #0d1015; border: 1px solid var(--c-border-soft); border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .creator-token-box code {
+    font-family: var(--c-mono); font-size: 11.5px; color: var(--c-text-dim);
+    line-height: 1.5; word-break: break-all; flex: 1;
+  }
+  .creator-copy-btn {
+    flex-shrink: 0; background: var(--c-panel-2); border: 1px solid var(--c-border);
+    color: var(--c-text-dim); font-size: 11px; font-weight: 600; padding: 6px 10px;
+    border-radius: 6px; cursor: pointer; transition: all .15s ease; font-family: inherit;
+  }
+  .creator-copy-btn:hover { color: var(--c-text); border-color: #3a4453; background: #1c222b; }
+  .creator-copy-btn.copied { color: var(--c-ok); border-color: rgba(79,191,114,0.35); }
+
+  .creator-renew-block { padding: 14px 0 4px; }
+  .creator-renew-top { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 8px; }
+  .creator-renew-top .c-label { color: var(--c-text-dim); }
+  .creator-renew-top .c-value { color: var(--c-text); font-weight: 500; }
+  .creator-bar { height: 5px; border-radius: 999px; background: #1a2029; overflow: hidden; }
+  .creator-bar-fill { height: 100%; background: linear-gradient(90deg, #d68a3a, #e8a55c); border-radius: 999px; }
+
+  .creator-card-foot { padding: 14px 20px 18px; border-top: 1px solid var(--c-border-soft); display: flex; flex-direction: column; gap: 8px; }
+  .creator-foot-btn {
+    width: 100%; background: transparent; border: 1px dashed var(--c-border);
+    color: var(--c-text-dim); font-family: inherit; font-size: 13px; font-weight: 500;
+    padding: 10px; border-radius: 9px; cursor: pointer; transition: all .15s ease;
+  }
+  .creator-foot-btn:hover { border-color: var(--c-accent); color: var(--c-accent); border-style: solid; background: var(--c-accent-soft); }
+  .creator-foot-btn.danger:hover { border-color: var(--c-danger); color: var(--c-danger); background: var(--c-danger-soft); }
+  .creator-foot-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .status-pill {
     display: inline-block;
     padding: 4px 10px;
@@ -1104,6 +1186,19 @@
       return data;
     }
 
+    function copyCreatorToken(btn) {
+      const code = btn.parentElement.querySelector("code").textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const original = btn.textContent;
+        btn.textContent = "Copiado";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove("copied");
+        }, 1500);
+      });
+    }
+
     function renderCreatorList(subs) {
       const wrap = document.getElementById("creator-list");
       if (!subs.length) {
@@ -1114,23 +1209,71 @@
         .map((s) => {
           const expires = s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("pt-BR") : "—";
           const created = s.createdAt ? new Date(s.createdAt).toLocaleDateString("pt-BR") : "—";
-          const pagamento = s.card ? `Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"}` : s.planType === "recurring" ? "Cartão (sem dado salvo)" : "Pix";
+          const isRecurring = Boolean(s.card) || s.planType === "recurring";
+          const planLabel = isRecurring ? "Recorrente" : "Pagamento único";
+
+          const now = Date.now();
+          const expiresMs = s.expiresAt ? new Date(s.expiresAt).getTime() : null;
+          const isActive = s.status === "active" && (s.isPartner || (expiresMs && expiresMs > now));
+          const statusBadge = s.isPartner
+            ? '<span class="creator-badge active">Parceiro</span>'
+            : isActive
+            ? '<span class="creator-badge active">Ativo</span>'
+            : s.status === "pending"
+            ? '<span class="creator-badge pending">Pendente</span>'
+            : '<span class="creator-badge expired">Expirado</span>';
+
+          let renewBlock;
+          if (s.isPartner) {
+            renewBlock = `
+              <div class="creator-renew-block">
+                <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Sem vencimento (parceiro)</span></div>
+              </div>`;
+          } else {
+            const createdMs = s.createdAt ? new Date(s.createdAt).getTime() : null;
+            let pct = 0;
+            if (createdMs && expiresMs && expiresMs > createdMs) {
+              pct = Math.min(100, Math.max(0, ((now - createdMs) / (expiresMs - createdMs)) * 100));
+            }
+            renewBlock = `
+              <div class="creator-renew-block">
+                <div class="creator-renew-top"><span class="c-label">Assinado ${created}</span><span class="c-value">Vence ${expires}</span></div>
+                <div class="creator-bar"><div class="creator-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
+              </div>`;
+          }
+
           return `
             <div class="creator-card" data-id="${s.id}">
-              <div class="creator-card-row"><b>#${s.id}</b> — ${s.serverName || "(sem nome)"} ${s.isPartner ? "🤝 PARCEIRO" : ""}</div>
-              <div class="creator-card-row">Status: ${s.status} · Plano: ${s.planType}</div>
-              <div class="creator-card-row">Dono: ${s.customerName || "—"} · @${s.discordUsername || "—"} (${s.discordUserId || "—"})</div>
-              <div class="creator-card-row">Email: ${s.email || "—"}</div>
-              <div class="creator-card-row">Servidor Nitrado — ID: <code>${s.nitradoServiceId || "—"}</code></div>
-              <div class="creator-card-row">Token Nitrado: <code>${s.nitradoToken || "—"}</code></div>
-              <div class="creator-card-row">Guild Discord vinculado: <code>${s.guildId || "—"}</code></div>
-              <div class="creator-card-row">Assinado: ${created} · Vence: ${expires}</div>
-              <div class="creator-card-row">Pagamento: ${pagamento}</div>
-              <div class="creator-card-actions">
-                <button type="button" class="btn btn-ghost creator-toggle-partner" data-id="${s.id}" data-partner="${s.isPartner ? "0" : "1"}">
-                  ${s.isPartner ? "Remover parceria" : "🤝 Marcar como parceiro"}
+              <div class="creator-card-head">
+                <div>
+                  <p class="c-id">#${s.id}</p>
+                  <h3>${s.serverName || "(sem nome)"}</h3>
+                </div>
+                <div class="creator-badges">
+                  ${statusBadge}
+                  <span class="creator-badge plan">${planLabel}</span>
+                </div>
+              </div>
+              <div class="creator-card-body">
+                <div class="creator-row"><span class="c-label">Dono</span><span class="c-value">${s.customerName || "—"} · @${s.discordUsername || "—"}</span></div>
+                <div class="creator-row"><span class="c-label">Discord ID</span><span class="c-value mono">${s.discordUserId || "—"}</span></div>
+                <div class="creator-row"><span class="c-label">Email</span><span class="c-value link">${s.email || "—"}</span></div>
+                <div class="creator-row"><span class="c-label">Servidor Nitrado</span><span class="c-value mono">${s.nitradoServiceId || "—"}</span></div>
+                <div class="creator-token-row">
+                  <span class="c-label">Token Nitrado</span>
+                  <div class="creator-token-box">
+                    <code>${s.nitradoToken || "—"}</code>
+                    <button type="button" class="creator-copy-btn" onclick="copyCreatorToken(this)">Copiar</button>
+                  </div>
+                </div>
+                <div class="creator-row"><span class="c-label">Guild vinculada</span><span class="c-value mono">${s.guildId || "—"}</span></div>
+                ${renewBlock}
+              </div>
+              <div class="creator-card-foot">
+                <button type="button" class="creator-foot-btn creator-toggle-partner" data-id="${s.id}" data-partner="${s.isPartner ? "0" : "1"}">
+                  ${s.isPartner ? "★ Remover parceria" : "☆ Marcar como parceiro"}
                 </button>
-                ${s.card ? `<button type="button" class="btn btn-danger creator-cancel-card" data-id="${s.id}">🗑️ Cancelar cobrança recorrente</button>` : ""}
+                ${s.card ? `<button type="button" class="creator-foot-btn danger creator-cancel-card" data-id="${s.id}">Cancelar cobrança recorrente (Cartão ${s.card.brand || ""} •••• ${s.card.lastFour || "----"})</button>` : ""}
               </div>
             </div>`;
         })
