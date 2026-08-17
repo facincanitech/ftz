@@ -151,10 +151,14 @@
   .account-row:last-child { border-bottom: none; }
   .account-row .label { color: var(--muted); }
   .account-row .value { font-weight: 600; text-align: right; }
-  /* Painel de Criador — variáveis PRÓPRIAS, escopadas em #view-creator
-     de propósito (não usa --bg/--card/--accent do resto do site,
-     evita colidir com .card/.badge/.row que já existem noutras telas). */
-  #view-creator {
+  /* Painel de Criador — variáveis PRÓPRIAS, nomes com prefixo --c- de
+     propósito (não usa --bg/--card/--accent do resto do site, evita
+     colidir com .card/.badge/.row que já existem noutras telas).
+     Definidas em :root (não em #view-creator) porque o modal
+     (#creator-modal-overlay) é IRMÃO de #view-creator no HTML, não
+     filho — variável CSS não herda entre irmãos, só descendentes; sem
+     isso o card dentro do modal ficava sem cor nenhuma (transparente). */
+  :root {
     --c-panel: #12161c; --c-panel-2: #171c23; --c-border: #232a33; --c-border-soft: #1b2129;
     --c-text: #e7ebf0; --c-text-dim: #8b96a3; --c-text-faint: #5b6773;
     --c-accent: #d68a3a; --c-accent-soft: rgba(214,138,58,0.12);
